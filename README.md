@@ -19,7 +19,7 @@ backend/
   test_engine.py        Basic model checks
 
 data/
-  universe.json         Default symbol universe and fallback metadata
+  No static metric dataset. Symbols are requested dynamically.
 ```
 
 ## Market Data
@@ -48,11 +48,15 @@ The provider caches responses in `.cache/alpha_vantage` for 12 hours by default.
 $env:MARKET_DATA_TTL_SECONDS="3600"
 ```
 
-Use a custom comma-separated universe without editing files:
+Use a custom comma-separated startup set without editing files:
 
 ```bash
 $env:STOCK_ANALYZER_SYMBOLS="AAPL,MSFT,NVDA"
 ```
+
+The app is no longer limited to a checked-in stock list. The browser can search symbols through Alpha Vantage `SYMBOL_SEARCH`, then request analysis for the selected symbols with `symbols=AAPL,MSFT,NVDA`.
+
+Full-market batch ranking requires a provider that exposes a licensed bulk universe or exchange listing feed. Alpha Vantage is used here for live per-symbol research and symbol lookup; the provider layer is isolated so a later Polygon/Nasdaq/Tushare universe provider can be added without rewriting the scoring engine.
 
 ## Scoring Model
 
@@ -105,6 +109,7 @@ Go is a good second service when the system grows: API gateway, scheduled jobs, 
 
 ```text
 GET /api/status
+GET /api/search?q=apple
 GET /api/summary
 GET /api/diagnostics
 GET /api/stocks

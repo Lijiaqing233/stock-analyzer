@@ -7,7 +7,9 @@ const state = {
   selected: null,
   diagnostics: null,
   summary: null,
-  status: null
+  status: null,
+  selectedSymbols: ["AAPL", "MSFT", "NVDA"],
+  searchResults: []
 };
 
 const elements = {
@@ -21,7 +23,11 @@ const elements = {
   summary: document.querySelector("#summary"),
   sectors: document.querySelector("#sectorGrid"),
   diagnostics: document.querySelector("#diagnosticsGrid"),
-  language: document.querySelector("#languageSelect")
+  language: document.querySelector("#languageSelect"),
+  symbolSearchInput: document.querySelector("#symbolSearchInput"),
+  symbolSearchButton: document.querySelector("#symbolSearchButton"),
+  searchResults: document.querySelector("#searchResults"),
+  selectedSymbols: document.querySelector("#selectedSymbols")
 };
 
 function scoreClass(score) {
@@ -55,6 +61,7 @@ function queryString() {
   params.set("sector", elements.sector.value);
   params.set("style", elements.style.value);
   params.set("minScore", elements.score.value);
+  params.set("symbols", state.selectedSymbols.join(","));
   return params.toString();
 }
 
@@ -111,6 +118,34 @@ async function loadStocks() {
     renderList();
     renderEmptyState("Market data setup required", error.message);
   }
+}
+
+async function searchSymbols() {
+  const query = elements.symbolSearchInput.value.trim();
+  if (!query) {
+    state.searchResults = [];
+    renderSearchResults();
+    return;
+  }
+  if (state.status && !state.status.configured) {
+    const symbols = query
+      .split(/[,\s]+/)
+      .map((symbol) => symbol.trim().toUpperCase())
+      .filter(Boolean);
+    state.searchResults = symbols.map((symbol) => ({
+      symbol,
+      name: symbol,
+      region: "Manual entry"
+    }));
+    renderSearchResults();
+    return;
+  }
+  try {
+    state.searchResults = await getJson(`/api/search?q=${encodeURIComponent(query)}`);
+  } catch (error) {
+    state.searchResults = [{ symbol: query.toUpperCase(), name: error.message, region: "Manual entry" }];
+  }
+  renderSearchResults();
 }
 
 async function loadSummary() {
@@ -274,6 +309,61 @@ function renderDetail(stock) {
   `;
 }
 
+function renderSelectedSymbols() {
+  elements.selectedSymbols.innerHTML = state.selectedSymbols
+    .map(
+      (symbol) => `
+        <span class="symbol-chip">
+          ${symbol}
+          <button type="button" data-remove-symbol="${symbol}" title="Remove ${symbol}">x</button>
+        </span>
+      `
+    )
+    .join("");
+}
+
+function renderSearchResults() {
+  elements.searchResults.innerHTML = state.searchResults
+    .slice(0, 8)
+    .map(
+      (result) => `
+        <div class="search-result">
+          <strong>${result.symbol}</strong>
+          <span>${result.name || result.type || ""} ${result.region ? `/ ${result.region}` : ""}</span>
+          <button type="button" data-add-symbol="${result.symbol}">${i18n.t("add")}</button>
+        </div>
+      `
+    )
+    .join("");
+}
+
+async function addSymbol(symbol) {
+  const normalized = symbol.trim().toUpperCase();
+  if (!normalized || state.selectedSymbols.includes(normalized)) return;
+  state.selectedSymbols = [...state.selectedSymbols, normalized];
+  renderSelectedSymbols();
+  await refreshMarketData();
+}
+
+async function removeSymbol(symbol) {
+  state.selectedSymbols = state.selectedSymbols.filter((item) => item !== symbol);
+  if (!state.selectedSymbols.length) {
+    state.stocks = [];
+    state.summary = null;
+    state.diagnostics = null;
+    state.selected = null;
+    renderSummary();
+    renderSectors();
+    renderDiagnostics();
+    renderList();
+    renderEmptyState(i18n.t("noMatches"), i18n.t("relaxFilters"));
+    renderSelectedSymbols();
+    return;
+  }
+  renderSelectedSymbols();
+  await refreshMarketData();
+}
+
 function renderDiagnostics() {
   const diagnostics = state.diagnostics;
   if (!diagnostics) {
@@ -395,7 +485,16 @@ function rerenderAll() {
   renderSectors();
   renderList();
   renderDiagnostics();
+  renderSelectedSymbols();
+  renderSearchResults();
   if (state.selected) renderDetail(state.selected);
+}
+
+async function refreshMarketData() {
+  await loadStatus();
+  await loadSummary();
+  await loadDiagnostics();
+  await loadStocks();
 }
 
 elements.list.addEventListener("click", (event) => {
@@ -404,10 +503,7 @@ elements.list.addEventListener("click", (event) => {
 });
 
 elements.refresh.addEventListener("click", async () => {
-  await loadStatus();
-  await loadSummary();
-  await loadDiagnostics();
-  await loadStocks();
+  await refreshMarketData();
 });
 elements.sector.addEventListener("change", loadStocks);
 elements.style.addEventListener("change", loadStocks);
@@ -419,9 +515,18 @@ elements.language.addEventListener("change", () => {
   i18n.setLanguage(elements.language.value);
   rerenderAll();
 });
+elements.symbolSearchButton.addEventListener("click", searchSymbols);
+elements.symbolSearchInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") searchSymbols();
+});
+elements.searchResults.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-add-symbol]");
+  if (button) await addSymbol(button.dataset.addSymbol);
+});
+elements.selectedSymbols.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-remove-symbol]");
+  if (button) await removeSymbol(button.dataset.removeSymbol);
+});
 
 rerenderAll();
-await loadStatus();
-await loadSummary();
-await loadDiagnostics();
-await loadStocks();
+await refreshMarketData();

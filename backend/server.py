@@ -12,22 +12,20 @@ from providers import AlphaVantageProvider, ProviderConfigError, ProviderDataErr
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_DIR = ROOT / "public"
-UNIVERSE_FILE = ROOT / "data" / "universe.json"
 PORT = int(os.environ.get("PORT", "3000"))
+DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA"]
 
 
 def load_universe(symbols: list[str] | None = None) -> list[dict[str, str]]:
-    configured = json.loads(UNIVERSE_FILE.read_text(encoding="utf-8"))
-    by_symbol = {item["symbol"].upper(): item for item in configured}
     requested = symbols or os.environ.get("STOCK_ANALYZER_SYMBOLS", "")
     if isinstance(requested, str):
         requested_symbols = [symbol.strip().upper() for symbol in requested.split(",") if symbol.strip()]
     else:
         requested_symbols = [symbol.strip().upper() for symbol in requested if symbol.strip()]
     if not requested_symbols:
-        return configured
+        requested_symbols = DEFAULT_SYMBOLS
     return [
-        by_symbol.get(symbol, {"symbol": symbol, "name": symbol, "sector": "Unknown"})
+        {"symbol": symbol, "name": symbol, "sector": "Unknown"}
         for symbol in requested_symbols
     ]
 
@@ -64,6 +62,15 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
 
             if parsed.path == "/api/status":
                 self.send_json(api_status())
+                return
+
+            if parsed.path == "/api/search":
+                keywords = query.get("q", [""])[0].strip()
+                if not keywords:
+                    self.send_json([])
+                    return
+                provider = AlphaVantageProvider()
+                self.send_json(provider.search_symbols(keywords))
                 return
 
             stocks, errors = load_live_stocks(symbol_list)
@@ -109,6 +116,8 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
                 },
                 status=503,
             )
+        except ProviderDataError as error:
+            self.send_json({"error": "Market data provider error", "detail": str(error)}, status=502)
 
     def send_json(self, body, status: int = 200) -> None:
         payload = json.dumps(body).encode("utf-8")
@@ -124,7 +133,7 @@ def api_status() -> dict:
     return {
         "provider": "Alpha Vantage",
         "configured": bool(os.environ.get("ALPHA_VANTAGE_API_KEY")),
-        "universeSize": len(load_universe()),
+        "defaultSymbols": [item["symbol"] for item in load_universe()],
         "cacheTtlSeconds": int(os.environ.get("MARKET_DATA_TTL_SECONDS", str(60 * 60 * 12))),
     }
 

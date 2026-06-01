@@ -44,6 +44,30 @@ class AlphaVantageProvider:
             },
         }
 
+    def search_symbols(self, keywords: str) -> list[dict]:
+        payload = self._request(
+            "search",
+            {
+                "function": "SYMBOL_SEARCH",
+                "keywords": keywords.strip(),
+            },
+        )
+        matches = payload.get("bestMatches")
+        if not isinstance(matches, list):
+            self._raise_payload_error(payload, keywords)
+        return [
+            {
+                "symbol": item.get("1. symbol", ""),
+                "name": item.get("2. name", ""),
+                "type": item.get("3. type", ""),
+                "region": item.get("4. region", ""),
+                "currency": item.get("8. currency", ""),
+                "matchScore": item.get("9. matchScore", ""),
+            }
+            for item in matches
+            if item.get("1. symbol")
+        ]
+
     def daily_series(self, symbol: str) -> list[dict]:
         payload = self._request(
             "daily",
@@ -90,7 +114,9 @@ class AlphaVantageProvider:
 
     def _request(self, cache_group: str, params: dict[str, str]) -> dict:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        cache_file = CACHE_DIR / f"{cache_group}_{params['symbol'].upper()}.json"
+        cache_key = (params.get("symbol") or params.get("keywords") or "request").upper()
+        cache_key = "".join(char if char.isalnum() or char in ("-", "_", ".") else "_" for char in cache_key)
+        cache_file = CACHE_DIR / f"{cache_group}_{cache_key}.json"
         if cache_file.exists() and time.time() - cache_file.stat().st_mtime < self.ttl_seconds:
             return json.loads(cache_file.read_text(encoding="utf-8"))
 
@@ -102,9 +128,9 @@ class AlphaVantageProvider:
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as error:
             if cache_file.exists():
                 return json.loads(cache_file.read_text(encoding="utf-8"))
-            raise ProviderDataError(f"Unable to fetch Alpha Vantage data for {params['symbol']}") from error
+            raise ProviderDataError(f"Unable to fetch Alpha Vantage data for {cache_key}") from error
 
-        self._raise_if_rate_limited(payload, params["symbol"])
+        self._raise_if_rate_limited(payload, cache_key)
         cache_file.write_text(json.dumps(payload), encoding="utf-8")
         return payload
 
