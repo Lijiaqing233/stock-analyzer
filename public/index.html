@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stock Analyzer</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%232563eb'/%3E%3Cpath d='M14 43 27 30l8 8 15-19' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Research Workbench</p>
+        <h1>Stock Analyzer</h1>
+      </div>
+      <div class="status-pill">
+        <span class="dot"></span>
+        Local model
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">多因子荐股原型</p>
+          <h2>用质量、估值、成长、动量和风险给股票排序</h2>
+          <p>
+            这是一个本地研究工具。它不会承诺收益，也不会替代个人化投资建议；它把样例股票按可解释的因子模型排序，方便继续接入真实行情和财报数据。
+          </p>
+        </div>
+        <div class="hero-metrics" id="summary">
+          <div>
+            <span class="metric-label">Universe</span>
+            <strong>--</strong>
+          </div>
+          <div>
+            <span class="metric-label">Average</span>
+            <strong>--</strong>
+          </div>
+          <div>
+            <span class="metric-label">Top Sector</span>
+            <strong>--</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="toolbar" aria-label="filters">
+        <label>
+          Sector
+          <select id="sectorFilter">
+            <option value="all">All sectors</option>
+          </select>
+        </label>
+        <label>
+          Style
+          <select id="styleFilter">
+            <option value="all">All styles</option>
+            <option value="balanced">Balanced</option>
+            <option value="growth">Growth tilt</option>
+            <option value="value">Value tilt</option>
+          </select>
+        </label>
+        <label>
+          Min score
+          <input id="scoreFilter" type="range" min="0" max="90" value="0" step="5" />
+          <span id="scoreValue">0</span>
+        </label>
+      </section>
+
+      <section class="layout">
+        <div class="panel list-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Rankings</p>
+              <h3>股票候选池</h3>
+            </div>
+            <button id="refreshButton" type="button" title="Refresh data">Refresh</button>
+          </div>
+          <div id="stockList" class="stock-list" aria-live="polite"></div>
+        </div>
+
+        <aside class="panel detail-panel" id="detailPanel">
+          <p class="eyebrow">Selected Stock</p>
+          <h3>选择一只股票查看解释</h3>
+          <p class="muted">模型会展示总分、评级、核心因子和主要指标。</p>
+        </aside>
+      </section>
+
+      <section class="panel sector-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Market Map</p>
+            <h3>行业平均分</h3>
+          </div>
+        </div>
+        <div id="sectorGrid" class="sector-grid"></div>
+      </section>
+    </main>
+
+    <footer>
+      <strong>Risk note:</strong>
+      本软件仅用于研究和教学。样例数据不保证实时、完整或准确；任何买卖决策都需要你自行验证数据、风险承受能力和投资约束。
+    </footer>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
