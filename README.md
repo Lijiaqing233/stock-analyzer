@@ -72,10 +72,13 @@ Go is a good second service when the system grows: API gateway, scheduled jobs, 
 
 ```text
 GET /api/summary
+GET /api/diagnostics
 GET /api/stocks
 GET /api/stocks?sector=Technology&style=growth&minScore=60
 GET /api/stocks/NVDA
 ```
+
+`/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, average model confidence, factor averages, and the most flagged names in the current universe.
 
 ## Roadmap
 

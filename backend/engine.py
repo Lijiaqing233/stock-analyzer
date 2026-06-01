@@ -12,6 +12,30 @@ FACTOR_WEIGHTS = {
     "risk": 0.16,
 }
 
+REQUIRED_FIELDS = [
+    "symbol",
+    "name",
+    "sector",
+    "price",
+    "pe",
+    "pb",
+    "roe",
+    "grossMargin",
+    "operatingMargin",
+    "debtToEquity",
+    "revenueGrowth",
+    "epsGrowth",
+    "marketShareTrend",
+    "return1m",
+    "return3m",
+    "relativeStrength",
+    "freeCashFlowYield",
+    "dividendYield",
+    "beta",
+    "volatility",
+    "liquidityScore",
+]
+
 
 def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
     return min(maximum, max(minimum, value))
@@ -55,6 +79,8 @@ def rating_for(score: float) -> str:
 
 
 def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
+    missing_fields = missing_required_fields(stock)
+
     momentum = weighted_average(
         [
             WeightedScore(scale_positive(stock["return3m"], 22, -18), 0.45),
@@ -106,12 +132,18 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
     }
     total = sum(factors[name] * weight for name, weight in FACTOR_WEIGHTS.items())
     rounded_factors = {name: round(score) for name, score in factors.items()}
+    contributions = factor_contributions(factors)
+    flags = risk_flags(stock, factors, missing_fields)
+    confidence = confidence_score(flags, missing_fields)
 
     return {
         **stock,
         "factors": rounded_factors,
+        "contributions": contributions,
         "score": round(total),
         "rating": rating_for(total),
+        "confidence": confidence,
+        "flags": flags,
         "thesis": build_thesis(stock, factors),
     }
 
@@ -168,6 +200,140 @@ def portfolio_summary(stocks: list[dict[str, Any]]) -> dict[str, Any]:
         "top": ranked[:5],
         "sectors": sector_rows,
     }
+
+
+def diagnostics_report(stocks: list[dict[str, Any]]) -> dict[str, Any]:
+    scored = rank_stocks(stocks)
+    all_flags = [flag for stock in scored for flag in stock["flags"]]
+    high_severity_flags = [flag for flag in all_flags if flag["severity"] == "high"]
+    missing_by_symbol = {
+        stock["symbol"]: missing_required_fields(stock)
+        for stock in stocks
+        if missing_required_fields(stock)
+    }
+    factor_averages = {
+        name: round(sum(stock["factors"][name] for stock in scored) / len(scored))
+        for name in FACTOR_WEIGHTS
+    }
+
+    return {
+        "coverage": {
+            "stocks": len(stocks),
+            "requiredFields": len(REQUIRED_FIELDS),
+            "completeRows": len(stocks) - len(missing_by_symbol),
+            "missingBySymbol": missing_by_symbol,
+        },
+        "model": {
+            "weights": FACTOR_WEIGHTS,
+            "factorAverages": factor_averages,
+            "averageConfidence": round(sum(stock["confidence"] for stock in scored) / len(scored)),
+        },
+        "risk": {
+            "flagCount": len(all_flags),
+            "highSeverityCount": len(high_severity_flags),
+            "mostFlagged": most_flagged(scored),
+        },
+    }
+
+
+def missing_required_fields(stock: dict[str, Any]) -> list[str]:
+    return [field for field in REQUIRED_FIELDS if field not in stock or stock[field] is None]
+
+
+def factor_contributions(factors: dict[str, float]) -> dict[str, float]:
+    return {
+        name: round(factors[name] * weight, 1)
+        for name, weight in FACTOR_WEIGHTS.items()
+    }
+
+
+def risk_flags(
+    stock: dict[str, Any],
+    factors: dict[str, float],
+    missing_fields: list[str],
+) -> list[dict[str, str]]:
+    flags = []
+
+    if missing_fields:
+        flags.append(
+            {
+                "code": "missing_data",
+                "severity": "high",
+                "label": "Missing required fields",
+                "detail": f"Missing: {', '.join(missing_fields)}",
+            }
+        )
+    if stock["pe"] >= 42 or stock["pb"] >= 18:
+        flags.append(
+            {
+                "code": "expensive_valuation",
+                "severity": "medium",
+                "label": "Expensive valuation",
+                "detail": "High valuation multiples reduce margin of safety.",
+            }
+        )
+    if stock["beta"] >= 1.45 or stock["volatility"] >= 40:
+        flags.append(
+            {
+                "code": "high_market_risk",
+                "severity": "medium",
+                "label": "High market risk",
+                "detail": "Beta or realized volatility is elevated.",
+            }
+        )
+    if stock["debtToEquity"] >= 1.35:
+        flags.append(
+            {
+                "code": "leverage",
+                "severity": "medium",
+                "label": "Leverage watch",
+                "detail": "Debt-to-equity is above the model comfort zone.",
+            }
+        )
+    if factors["growth"] < 45:
+        flags.append(
+            {
+                "code": "weak_growth",
+                "severity": "low",
+                "label": "Weak growth",
+                "detail": "Growth factor is below the neutral threshold.",
+            }
+        )
+    if stock["liquidityScore"] < 75:
+        flags.append(
+            {
+                "code": "liquidity",
+                "severity": "low",
+                "label": "Liquidity watch",
+                "detail": "Liquidity score is below preferred level.",
+            }
+        )
+
+    return flags
+
+
+def confidence_score(flags: list[dict[str, str]], missing_fields: list[str]) -> int:
+    penalty = len(missing_fields) * 12
+    for flag in flags:
+        if flag["severity"] == "high":
+            penalty += 18
+        elif flag["severity"] == "medium":
+            penalty += 8
+        else:
+            penalty += 4
+    return round(clamp(100 - penalty, 0, 100))
+
+
+def most_flagged(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "symbol": stock["symbol"],
+            "name": stock["name"],
+            "flagCount": len(stock["flags"]),
+            "highSeverityCount": len([flag for flag in stock["flags"] if flag["severity"] == "high"]),
+        }
+        for stock in sorted(stocks, key=lambda item: (len(item["flags"]), item["score"]), reverse=True)[:5]
+    ]
 
 
 def build_thesis(stock: dict[str, Any], factors: dict[str, float]) -> str:

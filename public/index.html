@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -22,10 +22,10 @@
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">多因子荐股原型</p>
-          <h2>用质量、估值、成长、动量和风险给股票排序</h2>
+          <p class="eyebrow">Multi-factor stock research</p>
+          <h2>Rank stocks with quality, valuation, growth, momentum, and risk signals</h2>
           <p>
-            这是一个本地研究工具。它不会承诺收益，也不会替代个人化投资建议；它把样例股票按可解释的因子模型排序，方便继续接入真实行情和财报数据。
+            This is a local research tool. It does not promise returns or replace personal investment advice. The model keeps the scoring logic visible so the next step can be real market data, filings, and portfolio constraints.
           </p>
         </div>
         <div class="hero-metrics" id="summary">
@@ -72,7 +72,7 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">Rankings</p>
-              <h3>股票候选池</h3>
+              <h3>Candidate universe</h3>
             </div>
             <button id="refreshButton" type="button" title="Refresh data">Refresh</button>
           </div>
@@ -81,16 +81,26 @@
 
         <aside class="panel detail-panel" id="detailPanel">
           <p class="eyebrow">Selected Stock</p>
-          <h3>选择一只股票查看解释</h3>
-          <p class="muted">模型会展示总分、评级、核心因子和主要指标。</p>
+          <h3>Select a stock to inspect the model explanation</h3>
+          <p class="muted">The detail view shows score, confidence, factor contributions, warnings, and raw metrics.</p>
         </aside>
+      </section>
+
+      <section class="panel diagnostics-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Model Diagnostics</p>
+            <h3>Data quality and factor health</h3>
+          </div>
+        </div>
+        <div id="diagnosticsGrid" class="diagnostics-grid"></div>
       </section>
 
       <section class="panel sector-panel">
         <div class="panel-head">
           <div>
             <p class="eyebrow">Market Map</p>
-            <h3>行业平均分</h3>
+            <h3>Sector average scores</h3>
           </div>
         </div>
         <div id="sectorGrid" class="sector-grid"></div>
@@ -99,7 +109,7 @@
 
     <footer>
       <strong>Risk note:</strong>
-      本软件仅用于研究和教学。样例数据不保证实时、完整或准确；任何买卖决策都需要你自行验证数据、风险承受能力和投资约束。
+      This software is for research and education only. Sample data may be stale, incomplete, or inaccurate. Any trading decision requires independent verification of data, suitability, and risk constraints.
     </footer>
 
     <script type="module" src="/app.js"></script>

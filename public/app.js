@@ -1,6 +1,7 @@
 const state = {
   stocks: [],
-  selected: null
+  selected: null,
+  diagnostics: null
 };
 
 const elements = {
@@ -12,7 +13,8 @@ const elements = {
   scoreValue: document.querySelector("#scoreValue"),
   refresh: document.querySelector("#refreshButton"),
   summary: document.querySelector("#summary"),
-  sectors: document.querySelector("#sectorGrid")
+  sectors: document.querySelector("#sectorGrid"),
+  diagnostics: document.querySelector("#diagnosticsGrid")
 };
 
 const factorLabels = {
@@ -27,6 +29,12 @@ function scoreClass(score) {
   if (score >= 76) return "strong";
   if (score >= 58) return "mid";
   return "weak";
+}
+
+function flagClass(severity) {
+  if (severity === "high") return "danger";
+  if (severity === "medium") return "warn";
+  return "info";
 }
 
 function formatPercent(value) {
@@ -56,8 +64,8 @@ async function loadStocks() {
     state.selected = null;
     elements.detail.innerHTML = `
       <p class="eyebrow">Selected Stock</p>
-      <h3>没有符合条件的股票</h3>
-      <p class="muted">放宽筛选条件后再试。</p>
+      <h3>No matching stocks</h3>
+      <p class="muted">Relax the filters to widen the research universe.</p>
     `;
   }
 }
@@ -82,10 +90,17 @@ async function loadSummary() {
     )
     .join("");
 
+  const currentSector = elements.sector.value;
   const sectors = ["all", ...summary.sectors.map((sector) => sector.sector)];
   elements.sector.innerHTML = sectors
     .map((sector) => `<option value="${sector}">${sector === "all" ? "All sectors" : sector}</option>`)
     .join("");
+  elements.sector.value = sectors.includes(currentSector) ? currentSector : "all";
+}
+
+async function loadDiagnostics() {
+  state.diagnostics = await getJson("/api/diagnostics");
+  renderDiagnostics();
 }
 
 function renderList() {
@@ -96,7 +111,7 @@ function renderList() {
           <div class="symbol">${stock.symbol}</div>
           <div class="company">
             <strong>${stock.name}</strong>
-            <span>${stock.sector} · ${stock.rating} · $${stock.price}</span>
+            <span>${stock.sector} / ${stock.rating} / confidence ${stock.confidence}</span>
           </div>
           <div class="score ${scoreClass(stock.score)}">${stock.score}</div>
         </article>
@@ -119,13 +134,26 @@ function renderDetail(stock) {
         <div class="factor">
           <div class="factor-top">
             <span>${factorLabels[name]}</span>
-            <span>${score}</span>
+            <span>${score} / +${stock.contributions[name]} pts</span>
           </div>
           <div class="bar"><span style="width:${score}%"></span></div>
         </div>
       `
     )
     .join("");
+
+  const flags = stock.flags.length
+    ? stock.flags
+        .map(
+          (flag) => `
+            <li class="flag ${flagClass(flag.severity)}">
+              <strong>${flag.label}</strong>
+              <span>${flag.detail}</span>
+            </li>
+          `
+        )
+        .join("")
+    : `<li class="flag info"><strong>No active flags</strong><span>The sample model found no major warnings.</span></li>`;
 
   elements.detail.innerHTML = `
     <div class="detail-title">
@@ -135,9 +163,10 @@ function renderDetail(stock) {
       </div>
       <div class="score ${scoreClass(stock.score)}">${stock.score}</div>
     </div>
-    <div class="rating">${stock.rating}</div>
+    <div class="rating">${stock.rating} / confidence ${stock.confidence}</div>
     <p class="muted">${stock.thesis}</p>
     <div class="factor-list">${factors}</div>
+    <ul class="flag-list">${flags}</ul>
     <div class="metric-table">
       <div class="metric"><span>P/E</span><strong>${stock.pe}</strong></div>
       <div class="metric"><span>ROE</span><strong>${formatPercent(stock.roe)}</strong></div>
@@ -149,12 +178,53 @@ function renderDetail(stock) {
   `;
 }
 
+function renderDiagnostics() {
+  const diagnostics = state.diagnostics;
+  elements.diagnostics.innerHTML = `
+    <article class="diagnostic-card">
+      <span class="muted">Complete rows</span>
+      <strong>${diagnostics.coverage.completeRows}/${diagnostics.coverage.stocks}</strong>
+      <span class="muted">${diagnostics.coverage.requiredFields} required fields checked</span>
+    </article>
+    <article class="diagnostic-card">
+      <span class="muted">Average confidence</span>
+      <strong>${diagnostics.model.averageConfidence}</strong>
+      <span class="muted">Penalty-adjusted model trust</span>
+    </article>
+    <article class="diagnostic-card">
+      <span class="muted">Risk flags</span>
+      <strong>${diagnostics.risk.flagCount}</strong>
+      <span class="muted">${diagnostics.risk.highSeverityCount} high severity</span>
+    </article>
+    <article class="diagnostic-card wide">
+      <span class="muted">Factor averages</span>
+      <div class="mini-bars">
+        ${Object.entries(diagnostics.model.factorAverages)
+          .map(
+            ([name, score]) => `
+              <div>
+                <span>${factorLabels[name]}</span>
+                <div class="bar"><span style="width:${score}%"></span></div>
+                <b>${score}</b>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+    </article>
+  `;
+}
+
 elements.list.addEventListener("click", (event) => {
   const row = event.target.closest(".stock-row");
   if (row) selectStock(row.dataset.symbol);
 });
 
-elements.refresh.addEventListener("click", loadStocks);
+elements.refresh.addEventListener("click", async () => {
+  await loadSummary();
+  await loadDiagnostics();
+  await loadStocks();
+});
 elements.sector.addEventListener("change", loadStocks);
 elements.style.addEventListener("change", loadStocks);
 elements.score.addEventListener("input", () => {
@@ -163,4 +233,5 @@ elements.score.addEventListener("input", () => {
 elements.score.addEventListener("change", loadStocks);
 
 await loadSummary();
+await loadDiagnostics();
 await loadStocks();

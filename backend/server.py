@@ -6,7 +6,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from engine import portfolio_summary, rank_stocks, score_stock
+from engine import diagnostics_report, portfolio_summary, rank_stocks, score_stock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +41,10 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
 
         if parsed.path == "/api/summary":
             self.send_json(portfolio_summary(stocks))
+            return
+
+        if parsed.path == "/api/diagnostics":
+            self.send_json(diagnostics_report(stocks))
             return
 
         prefix = "/api/stocks/"
