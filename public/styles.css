@@ -179,7 +179,7 @@ main {
 
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(280px, 1.4fr) repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin: 22px 0;
   padding: 16px;
@@ -196,17 +196,83 @@ label {
 }
 
 select,
-input[type="range"] {
+input[type="range"],
+input[type="search"] {
   width: 100%;
 }
 
-select {
+select,
+input[type="search"] {
   min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0 10px;
   background: white;
   color: var(--ink);
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.search-results {
+  display: grid;
+  gap: 6px;
+}
+
+.search-result {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: #f8fafc;
+}
+
+.search-result span {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.symbol-strip {
+  margin: -6px 0 22px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.selected-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.symbol-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--ink);
+  font-weight: 750;
+}
+
+.symbol-chip button {
+  min-height: 22px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
 }
 
 .layout {
@@ -497,6 +563,11 @@ footer {
   .hero,
   .layout,
   .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .search-row,
+  .search-result {
     grid-template-columns: 1fr;
   }
 
