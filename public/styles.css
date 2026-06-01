@@ -46,6 +46,26 @@ input {
   backdrop-filter: blur(16px);
 }
 
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.language-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.language-control select {
+  width: auto;
+  min-width: 116px;
+}
+
 h1,
 h2,
 h3,
@@ -498,6 +518,21 @@ footer {
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .top-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .language-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .language-control select {
+    width: 100%;
   }
 
   .hero {

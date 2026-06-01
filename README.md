@@ -11,6 +11,7 @@ public/                 Browser workbench
   index.html            Main shell
   styles.css            Responsive UI
   app.js                Fetches API data and renders rankings
+  i18n.js               English, Chinese, and Japanese UI translations
 
 backend/
   engine.py             Multi-factor scoring engine
@@ -79,6 +80,12 @@ GET /api/stocks/NVDA
 ```
 
 `/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, average model confidence, factor averages, and the most flagged names in the current universe.
+
+## Internationalization
+
+The browser UI supports English, Chinese, and Japanese. Static text is marked with `data-i18n`, while dynamic stock rows, model diagnostics, factor labels, rating labels, sector names, and risk flags are rendered through `public/i18n.js`.
+
+The app chooses a language from `localStorage` first, then falls back to the browser language. Users can switch languages from the top bar without reloading the page.
 
 ## Roadmap
 
