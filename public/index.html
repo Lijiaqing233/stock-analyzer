@@ -10,21 +10,27 @@
   <body>
     <header class="topbar">
       <div>
-        <p class="eyebrow">Research Workbench</p>
-        <h1>Stock Analyzer</h1>
+        <p class="eyebrow" data-i18n="appEyebrow">Research Workbench</p>
+        <h1 data-i18n="appTitle">Stock Analyzer</h1>
       </div>
-      <div class="status-pill">
-        <span class="dot"></span>
-        Local model
+      <div class="top-actions">
+        <label class="language-control">
+          <span data-i18n="language">Language</span>
+          <select id="languageSelect" aria-label="Language"></select>
+        </label>
+        <div class="status-pill">
+          <span class="dot"></span>
+          <span data-i18n="modelStatus">Local model</span>
+        </div>
       </div>
     </header>
 
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Multi-factor stock research</p>
-          <h2>Rank stocks with quality, valuation, growth, momentum, and risk signals</h2>
-          <p>
+          <p class="eyebrow" data-i18n="heroEyebrow">Multi-factor stock research</p>
+          <h2 data-i18n="heroTitle">Rank stocks with quality, valuation, growth, momentum, and risk signals</h2>
+          <p data-i18n="heroBody">
             This is a local research tool. It does not promise returns or replace personal investment advice. The model keeps the scoring logic visible so the next step can be real market data, filings, and portfolio constraints.
           </p>
         </div>
@@ -46,13 +52,13 @@
 
       <section class="toolbar" aria-label="filters">
         <label>
-          Sector
+          <span data-i18n="sector">Sector</span>
           <select id="sectorFilter">
             <option value="all">All sectors</option>
           </select>
         </label>
         <label>
-          Style
+          <span data-i18n="style">Style</span>
           <select id="styleFilter">
             <option value="all">All styles</option>
             <option value="balanced">Balanced</option>
@@ -61,7 +67,7 @@
           </select>
         </label>
         <label>
-          Min score
+          <span data-i18n="minScore">Min score</span>
           <input id="scoreFilter" type="range" min="0" max="90" value="0" step="5" />
           <span id="scoreValue">0</span>
         </label>
@@ -71,26 +77,26 @@
         <div class="panel list-panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Rankings</p>
-              <h3>Candidate universe</h3>
+              <p class="eyebrow" data-i18n="rankings">Rankings</p>
+              <h3 data-i18n="candidateUniverse">Candidate universe</h3>
             </div>
-            <button id="refreshButton" type="button" title="Refresh data">Refresh</button>
+            <button id="refreshButton" type="button" title="Refresh data" data-i18n="refresh">Refresh</button>
           </div>
           <div id="stockList" class="stock-list" aria-live="polite"></div>
         </div>
 
         <aside class="panel detail-panel" id="detailPanel">
-          <p class="eyebrow">Selected Stock</p>
-          <h3>Select a stock to inspect the model explanation</h3>
-          <p class="muted">The detail view shows score, confidence, factor contributions, warnings, and raw metrics.</p>
+          <p class="eyebrow" data-i18n="selectedStock">Selected Stock</p>
+          <h3 data-i18n="selectStock">Select a stock to inspect the model explanation</h3>
+          <p class="muted" data-i18n="detailHelp">The detail view shows score, confidence, factor contributions, warnings, and raw metrics.</p>
         </aside>
       </section>
 
       <section class="panel diagnostics-panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Model Diagnostics</p>
-            <h3>Data quality and factor health</h3>
+            <p class="eyebrow" data-i18n="diagnosticsEyebrow">Model Diagnostics</p>
+            <h3 data-i18n="diagnosticsTitle">Data quality and factor health</h3>
           </div>
         </div>
         <div id="diagnosticsGrid" class="diagnostics-grid"></div>
@@ -99,8 +105,8 @@
       <section class="panel sector-panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Market Map</p>
-            <h3>Sector average scores</h3>
+            <p class="eyebrow" data-i18n="marketMap">Market Map</p>
+            <h3 data-i18n="sectorScores">Sector average scores</h3>
           </div>
         </div>
         <div id="sectorGrid" class="sector-grid"></div>
@@ -108,8 +114,8 @@
     </main>
 
     <footer>
-      <strong>Risk note:</strong>
-      This software is for research and education only. Sample data may be stale, incomplete, or inaccurate. Any trading decision requires independent verification of data, suitability, and risk constraints.
+      <strong data-i18n="riskNoteLabel">Risk note:</strong>
+      <span data-i18n="riskNote">This software is for research and education only. Sample data may be stale, incomplete, or inaccurate. Any trading decision requires independent verification of data, suitability, and risk constraints.</span>
     </footer>
 
     <script type="module" src="/app.js"></script>
