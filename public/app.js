@@ -6,7 +6,8 @@ const state = {
   stocks: [],
   selected: null,
   diagnostics: null,
-  summary: null
+  summary: null,
+  status: null
 };
 
 const elements = {
@@ -36,12 +37,16 @@ function flagClass(severity) {
 }
 
 function formatPercent(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "N/A";
   return `${Number(value).toFixed(1)}%`;
 }
 
 async function getJson(path) {
   const response = await fetch(path);
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.detail || body.error || `Request failed: ${response.status}`);
+  }
   return response.json();
 }
 
@@ -83,35 +88,77 @@ function renderStyleOptions() {
 }
 
 async function loadStocks() {
-  state.stocks = await getJson(`/api/stocks?${queryString()}`);
-  renderList();
-  if (state.stocks.length) {
-    selectStock(state.selected?.symbol || state.stocks[0].symbol);
-  } else {
-    state.selected = null;
-    elements.detail.innerHTML = `
-      <p class="eyebrow">${i18n.t("selectedStock")}</p>
-      <h3>${i18n.t("noMatches")}</h3>
-      <p class="muted">${i18n.t("relaxFilters")}</p>
-    `;
+  if (state.status && !state.status.configured) {
+    state.stocks = [];
+    renderList();
+    renderEmptyState(
+      "Market data setup required",
+      "Set ALPHA_VANTAGE_API_KEY and restart the server. The app no longer uses fake stock metrics."
+    );
+    return;
+  }
+  try {
+    state.stocks = await getJson(`/api/stocks?${queryString()}`);
+    renderList();
+    if (state.stocks.length) {
+      selectStock(state.selected?.symbol || state.stocks[0].symbol);
+    } else {
+      state.selected = null;
+      renderEmptyState(i18n.t("noMatches"), i18n.t("relaxFilters"));
+    }
+  } catch (error) {
+    state.stocks = [];
+    renderList();
+    renderEmptyState("Market data setup required", error.message);
   }
 }
 
 async function loadSummary() {
-  state.summary = await getJson("/api/summary");
-  renderSummary();
-  renderSectorOptions();
-  renderSectors();
+  if (state.status && !state.status.configured) {
+    state.summary = null;
+    renderSummary();
+    return;
+  }
+  try {
+    state.summary = await getJson("/api/summary");
+    renderSummary();
+    renderSectorOptions();
+    renderSectors();
+  } catch {
+    state.summary = null;
+    renderSummary();
+  }
 }
 
 async function loadDiagnostics() {
-  state.diagnostics = await getJson("/api/diagnostics");
-  renderDiagnostics();
+  if (state.status && !state.status.configured) {
+    state.diagnostics = null;
+    renderDiagnostics();
+    return;
+  }
+  try {
+    state.diagnostics = await getJson("/api/diagnostics");
+    renderDiagnostics();
+  } catch {
+    state.diagnostics = null;
+    renderDiagnostics();
+  }
+}
+
+async function loadStatus() {
+  state.status = await getJson("/api/status");
 }
 
 function renderSummary() {
   const summary = state.summary;
-  if (!summary) return;
+  if (!summary) {
+    elements.summary.innerHTML = `
+      <div><span class="metric-label">${i18n.t("universe")}</span><strong>--</strong></div>
+      <div><span class="metric-label">${i18n.t("average")}</span><strong>--</strong></div>
+      <div><span class="metric-label">${i18n.t("topSector")}</span><strong>--</strong></div>
+    `;
+    return;
+  }
   elements.summary.innerHTML = `
     <div><span class="metric-label">${i18n.t("universe")}</span><strong>${summary.universeSize}</strong></div>
     <div><span class="metric-label">${i18n.t("average")}</span><strong>${summary.averageScore}</strong></div>
@@ -133,7 +180,10 @@ function renderSectorOptions() {
 
 function renderSectors() {
   const summary = state.summary;
-  if (!summary) return;
+  if (!summary) {
+    elements.sectors.innerHTML = "";
+    return;
+  }
   elements.sectors.innerHTML = summary.sectors
     .map(
       (sector) => `
@@ -214,18 +264,22 @@ function renderDetail(stock) {
     <ul class="flag-list">${flags}</ul>
     <div class="metric-table">
       <div class="metric"><span>P/E</span><strong>${stock.pe}</strong></div>
-      <div class="metric"><span>ROE</span><strong>${formatPercent(stock.roe)}</strong></div>
-      <div class="metric"><span>${metricLabel("revenueGrowth")}</span><strong>${formatPercent(stock.revenueGrowth)}</strong></div>
+      <div class="metric"><span>${metricLabel("price")}</span><strong>$${stock.price}</strong></div>
       <div class="metric"><span>${metricLabel("return3m")}</span><strong>${formatPercent(stock.return3m)}</strong></div>
+      <div class="metric"><span>${metricLabel("volatility")}</span><strong>${formatPercent(stock.volatility)}</strong></div>
       <div class="metric"><span>Beta</span><strong>${stock.beta}</strong></div>
-      <div class="metric"><span>${metricLabel("fcfYield")}</span><strong>${formatPercent(stock.freeCashFlowYield)}</strong></div>
+      <div class="metric"><span>${metricLabel("maxDrawdown")}</span><strong>${formatPercent(stock.maxDrawdown)}</strong></div>
+      <div class="metric"><span>${metricLabel("avgDollarVolume")}</span><strong>${formatMoney(stock.avgDollarVolume)}</strong></div>
     </div>
   `;
 }
 
 function renderDiagnostics() {
   const diagnostics = state.diagnostics;
-  if (!diagnostics) return;
+  if (!diagnostics) {
+    elements.diagnostics.innerHTML = "";
+    return;
+  }
   elements.diagnostics.innerHTML = `
     <article class="diagnostic-card">
       <span class="muted">${i18n.t("completeRows")}</span>
@@ -290,22 +344,46 @@ function localizedThesis(stock) {
 function metricLabel(key) {
   const labels = {
     en: {
-      revenueGrowth: "Revenue growth",
+      price: "Latest price",
       return3m: "3M return",
-      fcfYield: "FCF yield"
+      volatility: "Volatility",
+      maxDrawdown: "Max drawdown",
+      avgDollarVolume: "Avg dollar volume"
     },
     zh: {
-      revenueGrowth: "营收增长",
+      price: "最新价格",
       return3m: "3个月回报",
-      fcfYield: "自由现金流收益率"
+      volatility: "波动率",
+      maxDrawdown: "最大回撤",
+      avgDollarVolume: "平均成交额"
     },
     ja: {
-      revenueGrowth: "売上成長率",
+      price: "最新価格",
       return3m: "3か月リターン",
-      fcfYield: "FCF利回り"
+      volatility: "ボラティリティ",
+      maxDrawdown: "最大ドローダウン",
+      avgDollarVolume: "平均売買代金"
     }
   };
   return labels[i18n.language][key] ?? labels.en[key];
+}
+
+function renderEmptyState(title, detail) {
+  elements.detail.innerHTML = `
+    <p class="eyebrow">${i18n.t("selectedStock")}</p>
+    <h3>${title}</h3>
+    <p class="muted">${detail}</p>
+  `;
+}
+
+function formatMoney(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "N/A";
+  return new Intl.NumberFormat(i18n.language, {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+    notation: "compact"
+  }).format(Number(value));
 }
 
 function rerenderAll() {
@@ -326,6 +404,7 @@ elements.list.addEventListener("click", (event) => {
 });
 
 elements.refresh.addEventListener("click", async () => {
+  await loadStatus();
   await loadSummary();
   await loadDiagnostics();
   await loadStocks();
@@ -342,6 +421,7 @@ elements.language.addEventListener("change", () => {
 });
 
 rerenderAll();
+await loadStatus();
 await loadSummary();
 await loadDiagnostics();
 await loadStocks();

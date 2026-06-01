@@ -1,39 +1,29 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
+from statistics import mean, pstdev
 from typing import Any
 
 
 FACTOR_WEIGHTS = {
-    "momentum": 0.24,
-    "value": 0.20,
-    "quality": 0.22,
+    "momentum": 0.28,
+    "value": 0.16,
+    "quality": 0.18,
     "growth": 0.18,
-    "risk": 0.16,
+    "risk": 0.20,
 }
 
-REQUIRED_FIELDS = [
+CORE_FIELDS = [
     "symbol",
     "name",
     "sector",
     "price",
-    "pe",
-    "pb",
-    "roe",
-    "grossMargin",
-    "operatingMargin",
-    "debtToEquity",
-    "revenueGrowth",
-    "epsGrowth",
-    "marketShareTrend",
     "return1m",
     "return3m",
-    "relativeStrength",
-    "freeCashFlowYield",
-    "dividendYield",
-    "beta",
+    "return6m",
     "volatility",
-    "liquidityScore",
+    "maxDrawdown",
+    "avgDollarVolume",
 ]
 
 
@@ -41,29 +31,23 @@ def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
     return min(maximum, max(minimum, value))
 
 
-def scale_positive(value: float, good: float, bad: float) -> float:
-    if good == bad:
-        return 50
+def scale_positive(value: float | None, good: float, bad: float, neutral: float = 50) -> float:
+    if value is None or good == bad:
+        return neutral
     return clamp(((value - bad) / (good - bad)) * 100)
 
 
-def scale_negative(value: float, good: float, bad: float) -> float:
-    if good == bad:
-        return 50
+def scale_negative(value: float | None, good: float, bad: float, neutral: float = 50) -> float:
+    if value is None or good == bad:
+        return neutral
     return clamp(((bad - value) / (bad - good)) * 100)
 
 
-@dataclass(frozen=True)
-class WeightedScore:
-    score: float
-    weight: float
-
-
-def weighted_average(parts: list[WeightedScore]) -> float:
-    total_weight = sum(part.weight for part in parts)
+def weighted_average(parts: list[tuple[float, float]]) -> float:
+    total_weight = sum(weight for _, weight in parts)
     if not total_weight:
         return 0
-    return sum(part.score * part.weight for part in parts) / total_weight
+    return sum(score * weight for score, weight in parts) / total_weight
 
 
 def rating_for(score: float) -> str:
@@ -78,48 +62,88 @@ def rating_for(score: float) -> str:
     return "Avoid"
 
 
+def build_stock_inputs(snapshot: dict[str, Any], universe_item: dict[str, str]) -> dict[str, Any]:
+    prices = snapshot["daily"]
+    overview = snapshot.get("overview", {})
+    if len(prices) < 70:
+        raise ValueError(f"{universe_item['symbol']} needs at least 70 daily bars")
+
+    closes = [row["close"] for row in prices]
+    latest = prices[-1]
+    returns = daily_returns(closes)
+    avg_volume = mean(row["volume"] for row in prices[-30:])
+    avg_dollar_volume = mean(row["close"] * row["volume"] for row in prices[-30:])
+
+    return {
+        "symbol": universe_item["symbol"],
+        "name": overview.get("Name") or universe_item.get("name") or universe_item["symbol"],
+        "sector": overview.get("Sector") or universe_item.get("sector") or "Unknown",
+        "price": round(latest["close"], 2),
+        "asOf": latest["date"],
+        "provider": snapshot.get("provider", {}),
+        "return1m": percent_change(closes, 21),
+        "return3m": percent_change(closes, 63),
+        "return6m": percent_change(closes, 126),
+        "trend50": distance_to_average(closes, 50),
+        "trend200": distance_to_average(closes, 200),
+        "volatility": annualized_volatility(returns[-63:]),
+        "maxDrawdown": max_drawdown(closes[-126:]),
+        "avgVolume": round(avg_volume),
+        "avgDollarVolume": round(avg_dollar_volume),
+        "pe": number_or_none(overview.get("PERatio")),
+        "pb": number_or_none(overview.get("PriceToBookRatio")),
+        "roe": percent_or_none(overview.get("ReturnOnEquityTTM")),
+        "profitMargin": percent_or_none(overview.get("ProfitMargin")),
+        "revenueGrowth": percent_or_none(overview.get("QuarterlyRevenueGrowthYOY")),
+        "epsGrowth": percent_or_none(overview.get("QuarterlyEarningsGrowthYOY")),
+        "dividendYield": percent_or_none(overview.get("DividendYield")),
+        "beta": number_or_none(overview.get("Beta")),
+    }
+
+
 def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
-    missing_fields = missing_required_fields(stock)
+    missing_core = missing_fields(stock, CORE_FIELDS)
+    missing_fundamentals = missing_fields(
+        stock,
+        ["pe", "pb", "roe", "profitMargin", "revenueGrowth", "epsGrowth", "dividendYield", "beta"],
+    )
 
     momentum = weighted_average(
         [
-            WeightedScore(scale_positive(stock["return3m"], 22, -18), 0.45),
-            WeightedScore(scale_positive(stock["return1m"], 12, -10), 0.30),
-            WeightedScore(scale_positive(stock["relativeStrength"], 90, 25), 0.25),
+            (scale_positive(stock.get("return1m"), 12, -10), 0.25),
+            (scale_positive(stock.get("return3m"), 24, -18), 0.35),
+            (scale_positive(stock.get("return6m"), 36, -25), 0.25),
+            (scale_positive(stock.get("trend50"), 8, -8), 0.15),
         ]
     )
-
     value = weighted_average(
         [
-            WeightedScore(scale_negative(stock["pe"], 8, 45), 0.35),
-            WeightedScore(scale_negative(stock["pb"], 0.8, 8), 0.25),
-            WeightedScore(scale_positive(stock["freeCashFlowYield"], 10, -3), 0.25),
-            WeightedScore(scale_positive(stock["dividendYield"], 5, 0), 0.15),
+            (scale_negative(stock.get("pe"), 8, 45), 0.45),
+            (scale_negative(stock.get("pb"), 0.8, 10), 0.25),
+            (scale_positive(stock.get("dividendYield"), 5, 0), 0.15),
+            (scale_positive(earnings_yield(stock.get("pe")), 9, 1), 0.15),
         ]
     )
-
     quality = weighted_average(
         [
-            WeightedScore(scale_positive(stock["roe"], 28, 4), 0.35),
-            WeightedScore(scale_positive(stock["grossMargin"], 70, 18), 0.20),
-            WeightedScore(scale_positive(stock["operatingMargin"], 32, 4), 0.25),
-            WeightedScore(scale_negative(stock["debtToEquity"], 0.15, 2.2), 0.20),
+            (scale_positive(stock.get("roe"), 28, 4), 0.45),
+            (scale_positive(stock.get("profitMargin"), 28, 2), 0.35),
+            (scale_positive(stock.get("avgDollarVolume"), 1_500_000_000, 50_000_000), 0.20),
         ]
     )
-
     growth = weighted_average(
         [
-            WeightedScore(scale_positive(stock["revenueGrowth"], 30, -8), 0.45),
-            WeightedScore(scale_positive(stock["epsGrowth"], 35, -15), 0.45),
-            WeightedScore(scale_positive(stock["marketShareTrend"], 8, -6), 0.10),
+            (scale_positive(stock.get("revenueGrowth"), 30, -8), 0.35),
+            (scale_positive(stock.get("epsGrowth"), 35, -15), 0.35),
+            (scale_positive(stock.get("trend200"), 15, -20), 0.30),
         ]
     )
-
     risk = weighted_average(
         [
-            WeightedScore(scale_negative(stock["beta"], 0.65, 1.8), 0.35),
-            WeightedScore(scale_negative(stock["volatility"], 16, 55), 0.35),
-            WeightedScore(scale_positive(stock["liquidityScore"], 95, 35), 0.30),
+            (scale_negative(stock.get("beta"), 0.65, 1.8), 0.25),
+            (scale_negative(stock.get("volatility"), 16, 60), 0.30),
+            (scale_negative(abs(stock.get("maxDrawdown") or 0), 8, 45), 0.30),
+            (scale_positive(stock.get("avgDollarVolume"), 1_000_000_000, 25_000_000), 0.15),
         ]
     )
 
@@ -131,18 +155,15 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
         "risk": risk,
     }
     total = sum(factors[name] * weight for name, weight in FACTOR_WEIGHTS.items())
-    rounded_factors = {name: round(score) for name, score in factors.items()}
-    contributions = factor_contributions(factors)
-    flags = risk_flags(stock, factors, missing_fields)
-    confidence = confidence_score(flags, missing_fields)
+    flags = risk_flags(stock, factors, missing_core, missing_fundamentals)
 
     return {
         **stock,
-        "factors": rounded_factors,
-        "contributions": contributions,
+        "factors": {name: round(score) for name, score in factors.items()},
+        "contributions": {name: round(factors[name] * weight, 1) for name, weight in FACTOR_WEIGHTS.items()},
         "score": round(total),
         "rating": rating_for(total),
-        "confidence": confidence,
+        "confidence": confidence_score(flags),
         "flags": flags,
         "thesis": build_thesis(stock, factors),
     }
@@ -157,7 +178,6 @@ def rank_stocks(stocks: list[dict[str, Any]], filters: dict[str, str] | None = N
         style = filters.get("style")
         min_score = filters.get("minScore")
         max_risk = filters.get("maxRisk")
-
         if sector and sector != "all" and stock["sector"] != sector:
             return False
         if min_score and stock["score"] < int(min_score):
@@ -174,7 +194,7 @@ def rank_stocks(stocks: list[dict[str, Any]], filters: dict[str, str] | None = N
 
     return sorted(
         (stock for stock in scored if allowed(stock)),
-        key=lambda stock: (stock["score"], stock["factors"]["quality"]),
+        key=lambda stock: (stock["score"], stock["confidence"], stock["factors"]["risk"]),
         reverse=True,
     )
 
@@ -182,7 +202,6 @@ def rank_stocks(stocks: list[dict[str, Any]], filters: dict[str, str] | None = N
 def portfolio_summary(stocks: list[dict[str, Any]]) -> dict[str, Any]:
     ranked = rank_stocks(stocks)
     sectors: dict[str, dict[str, Any]] = {}
-
     for stock in ranked:
         current = sectors.setdefault(stock["sector"], {"sector": stock["sector"], "count": 0, "avgScore": 0})
         current["count"] += 1
@@ -196,129 +215,79 @@ def portfolio_summary(stocks: list[dict[str, Any]]) -> dict[str, Any]:
 
     return {
         "universeSize": len(ranked),
-        "averageScore": round(sum(stock["score"] for stock in ranked) / len(ranked)),
+        "averageScore": round(mean(stock["score"] for stock in ranked)) if ranked else 0,
         "top": ranked[:5],
         "sectors": sector_rows,
     }
 
 
-def diagnostics_report(stocks: list[dict[str, Any]]) -> dict[str, Any]:
+def diagnostics_report(stocks: list[dict[str, Any]], errors: list[dict[str, str]] | None = None) -> dict[str, Any]:
     scored = rank_stocks(stocks)
     all_flags = [flag for stock in scored for flag in stock["flags"]]
-    high_severity_flags = [flag for flag in all_flags if flag["severity"] == "high"]
-    missing_by_symbol = {
-        stock["symbol"]: missing_required_fields(stock)
-        for stock in stocks
-        if missing_required_fields(stock)
-    }
     factor_averages = {
-        name: round(sum(stock["factors"][name] for stock in scored) / len(scored))
+        name: round(mean(stock["factors"][name] for stock in scored)) if scored else 0
         for name in FACTOR_WEIGHTS
     }
-
     return {
         "coverage": {
-            "stocks": len(stocks),
-            "requiredFields": len(REQUIRED_FIELDS),
-            "completeRows": len(stocks) - len(missing_by_symbol),
-            "missingBySymbol": missing_by_symbol,
+            "stocks": len(scored),
+            "requiredFields": len(CORE_FIELDS),
+            "completeRows": len([stock for stock in scored if not missing_fields(stock, CORE_FIELDS)]),
+            "missingBySymbol": {
+                stock["symbol"]: missing_fields(stock, CORE_FIELDS)
+                for stock in scored
+                if missing_fields(stock, CORE_FIELDS)
+            },
+            "providerErrors": errors or [],
         },
         "model": {
             "weights": FACTOR_WEIGHTS,
             "factorAverages": factor_averages,
-            "averageConfidence": round(sum(stock["confidence"] for stock in scored) / len(scored)),
+            "averageConfidence": round(mean(stock["confidence"] for stock in scored)) if scored else 0,
         },
         "risk": {
             "flagCount": len(all_flags),
-            "highSeverityCount": len(high_severity_flags),
+            "highSeverityCount": len([flag for flag in all_flags if flag["severity"] == "high"]),
             "mostFlagged": most_flagged(scored),
         },
-    }
-
-
-def missing_required_fields(stock: dict[str, Any]) -> list[str]:
-    return [field for field in REQUIRED_FIELDS if field not in stock or stock[field] is None]
-
-
-def factor_contributions(factors: dict[str, float]) -> dict[str, float]:
-    return {
-        name: round(factors[name] * weight, 1)
-        for name, weight in FACTOR_WEIGHTS.items()
     }
 
 
 def risk_flags(
     stock: dict[str, Any],
     factors: dict[str, float],
-    missing_fields: list[str],
+    missing_core: list[str],
+    missing_fundamentals: list[str],
 ) -> list[dict[str, str]]:
     flags = []
-
-    if missing_fields:
-        flags.append(
-            {
-                "code": "missing_data",
-                "severity": "high",
-                "label": "Missing required fields",
-                "detail": f"Missing: {', '.join(missing_fields)}",
-            }
-        )
-    if stock["pe"] >= 42 or stock["pb"] >= 18:
-        flags.append(
-            {
-                "code": "expensive_valuation",
-                "severity": "medium",
-                "label": "Expensive valuation",
-                "detail": "High valuation multiples reduce margin of safety.",
-            }
-        )
-    if stock["beta"] >= 1.45 or stock["volatility"] >= 40:
-        flags.append(
-            {
-                "code": "high_market_risk",
-                "severity": "medium",
-                "label": "High market risk",
-                "detail": "Beta or realized volatility is elevated.",
-            }
-        )
-    if stock["debtToEquity"] >= 1.35:
-        flags.append(
-            {
-                "code": "leverage",
-                "severity": "medium",
-                "label": "Leverage watch",
-                "detail": "Debt-to-equity is above the model comfort zone.",
-            }
-        )
+    if missing_core:
+        flags.append({"code": "missing_data", "severity": "high", "detail": f"Missing: {', '.join(missing_core)}"})
+    if missing_fundamentals:
+        flags.append({"code": "missing_fundamentals", "severity": "low", "detail": f"Missing: {', '.join(missing_fundamentals)}"})
+    if stock.get("pe") is not None and stock["pe"] >= 42:
+        flags.append({"code": "expensive_valuation", "severity": "medium", "detail": "High valuation multiple."})
+    beta = stock.get("beta")
+    volatility = stock.get("volatility") or 0
+    if (beta is not None and beta >= 1.45) or volatility >= 40:
+        flags.append({"code": "high_market_risk", "severity": "medium", "detail": "Elevated beta or volatility."})
+    if abs(stock.get("maxDrawdown") or 0) >= 30:
+        flags.append({"code": "high_drawdown", "severity": "medium", "detail": "Six-month drawdown is elevated."})
+    if factors["momentum"] < 45:
+        flags.append({"code": "weak_momentum", "severity": "low", "detail": "Momentum factor is below neutral."})
     if factors["growth"] < 45:
-        flags.append(
-            {
-                "code": "weak_growth",
-                "severity": "low",
-                "label": "Weak growth",
-                "detail": "Growth factor is below the neutral threshold.",
-            }
-        )
-    if stock["liquidityScore"] < 75:
-        flags.append(
-            {
-                "code": "liquidity",
-                "severity": "low",
-                "label": "Liquidity watch",
-                "detail": "Liquidity score is below preferred level.",
-            }
-        )
-
+        flags.append({"code": "weak_growth", "severity": "low", "detail": "Growth factor is below neutral."})
+    if stock.get("avgDollarVolume", 0) < 50_000_000:
+        flags.append({"code": "liquidity", "severity": "low", "detail": "Average dollar volume is low."})
     return flags
 
 
-def confidence_score(flags: list[dict[str, str]], missing_fields: list[str]) -> int:
-    penalty = len(missing_fields) * 12
+def confidence_score(flags: list[dict[str, str]]) -> int:
+    penalty = 0
     for flag in flags:
         if flag["severity"] == "high":
-            penalty += 18
+            penalty += 24
         elif flag["severity"] == "medium":
-            penalty += 8
+            penalty += 9
         else:
             penalty += 4
     return round(clamp(100 - penalty, 0, 100))
@@ -339,16 +308,74 @@ def most_flagged(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def build_thesis(stock: dict[str, Any], factors: dict[str, float]) -> str:
     strengths = [name for name, score in sorted(factors.items(), key=lambda item: item[1], reverse=True) if score >= 68]
     weaknesses = [name for name, score in sorted(factors.items(), key=lambda item: item[1]) if score < 48]
-
-    positive = (
-        f"Strength in {' and '.join(strengths[:2])}."
-        if strengths
-        else "No dominant factor edge."
-    )
-    caution = (
-        f"Monitor {' and '.join(weaknesses[:2])}."
-        if weaknesses
-        else "No severe factor weakness in the sample model."
-    )
+    positive = f"Strength in {' and '.join(strengths[:2])}." if strengths else "No dominant factor edge."
+    caution = f"Monitor {' and '.join(weaknesses[:2])}." if weaknesses else "No severe factor weakness."
     score = sum(factors[name] * weight for name, weight in FACTOR_WEIGHTS.items())
     return f"{stock['name']} ranks as {rating_for(score)}. {positive} {caution}"
+
+
+def daily_returns(closes: list[float]) -> list[float]:
+    return [
+        (closes[index] / closes[index - 1] - 1) * 100
+        for index in range(1, len(closes))
+        if closes[index - 1] > 0
+    ]
+
+
+def percent_change(values: list[float], lookback: int) -> float | None:
+    if len(values) <= lookback or values[-lookback - 1] <= 0:
+        return None
+    return round((values[-1] / values[-lookback - 1] - 1) * 100, 2)
+
+
+def distance_to_average(values: list[float], window: int) -> float | None:
+    if len(values) < window:
+        return None
+    average = mean(values[-window:])
+    if average <= 0:
+        return None
+    return round((values[-1] / average - 1) * 100, 2)
+
+
+def annualized_volatility(returns: list[float]) -> float | None:
+    if len(returns) < 20:
+        return None
+    return round(pstdev(returns) * math.sqrt(252), 2)
+
+
+def max_drawdown(values: list[float]) -> float | None:
+    if not values:
+        return None
+    peak = values[0]
+    drawdown = 0.0
+    for value in values:
+        peak = max(peak, value)
+        if peak > 0:
+            drawdown = min(drawdown, (value / peak - 1) * 100)
+    return round(drawdown, 2)
+
+
+def number_or_none(value: Any) -> float | None:
+    try:
+        if value in (None, "", "None", "-", "0"):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def percent_or_none(value: Any) -> float | None:
+    number = number_or_none(value)
+    if number is None:
+        return None
+    return round(number * 100, 2) if abs(number) <= 2 else round(number, 2)
+
+
+def earnings_yield(pe: float | None) -> float | None:
+    if pe is None or pe <= 0:
+        return None
+    return 100 / pe
+
+
+def missing_fields(stock: dict[str, Any], fields: list[str]) -> list[str]:
+    return [field for field in fields if stock.get(field) is None]

@@ -1,0 +1,12 @@
+[
+  { "symbol": "AAPL", "name": "Apple", "sector": "Technology" },
+  { "symbol": "MSFT", "name": "Microsoft", "sector": "Technology" },
+  { "symbol": "NVDA", "name": "Nvidia", "sector": "Technology" },
+  { "symbol": "JPM", "name": "JPMorgan Chase", "sector": "Financials" },
+  { "symbol": "LLY", "name": "Eli Lilly", "sector": "Healthcare" },
+  { "symbol": "UNH", "name": "UnitedHealth", "sector": "Healthcare" },
+  { "symbol": "XOM", "name": "Exxon Mobil", "sector": "Energy" },
+  { "symbol": "COST", "name": "Costco", "sector": "Consumer Staples" },
+  { "symbol": "CAT", "name": "Caterpillar", "sector": "Industrials" },
+  { "symbol": "NEE", "name": "NextEra Energy", "sector": "Utilities" }
+]

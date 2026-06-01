@@ -1,8 +1,8 @@
 # Stock Analyzer
 
-Stock Analyzer is a local stock research workbench. It ranks a sample equity universe with a transparent multi-factor model and exposes the result through a small Python API and browser UI.
+Stock Analyzer is a local stock research workbench. It ranks an equity universe with live Alpha Vantage market data, a transparent multi-factor model, and a small Python API plus browser UI.
 
-This is not financial advice. The sample data is static and may be stale, incomplete, or inaccurate. Use it as an architecture and product prototype before connecting licensed market data, filings, and portfolio constraints.
+This is not financial advice. Market data can be delayed, unavailable, stale, incomplete, or inaccurate. Use it as a research system, not an automated trading instruction.
 
 ## Architecture
 
@@ -19,20 +19,52 @@ backend/
   test_engine.py        Basic model checks
 
 data/
-  stocks.json           Sample stock universe
+  universe.json         Default symbol universe and fallback metadata
+```
+
+## Market Data
+
+The app uses Alpha Vantage:
+
+- `TIME_SERIES_DAILY` for daily OHLCV prices
+- `OVERVIEW` for company fundamentals
+
+Create an API key at:
+
+```text
+https://www.alphavantage.co/support/#api-key
+```
+
+Run with:
+
+```bash
+$env:ALPHA_VANTAGE_API_KEY="your_key_here"
+python backend/server.py
+```
+
+The provider caches responses in `.cache/alpha_vantage` for 12 hours by default. Override the cache TTL:
+
+```bash
+$env:MARKET_DATA_TTL_SECONDS="3600"
+```
+
+Use a custom comma-separated universe without editing files:
+
+```bash
+$env:STOCK_ANALYZER_SYMBOLS="AAPL,MSFT,NVDA"
 ```
 
 ## Scoring Model
 
-The model converts raw indicators to 0-100 factor scores and combines them with fixed weights:
+The model converts live price and fundamental signals to 0-100 factor scores and combines them with fixed weights:
 
 | Factor | Weight | Signals |
 | --- | ---: | --- |
-| Momentum | 24% | 1-month return, 3-month return, relative strength |
-| Value | 20% | P/E, P/B, free cash flow yield, dividend yield |
-| Quality | 22% | ROE, gross margin, operating margin, debt-to-equity |
-| Growth | 18% | Revenue growth, EPS growth, market-share trend |
-| Risk | 16% | Beta, volatility, liquidity |
+| Momentum | 28% | 1-month return, 3-month return, 6-month return, distance to 50-day average |
+| Value | 16% | P/E, P/B, dividend yield, earnings yield |
+| Quality | 18% | ROE, profit margin, average dollar volume |
+| Growth | 18% | Revenue growth, EPS growth, distance to 200-day average |
+| Risk | 20% | Beta, annualized volatility, 6-month max drawdown, liquidity |
 
 Ratings are research labels:
 
@@ -72,14 +104,16 @@ Go is a good second service when the system grows: API gateway, scheduled jobs, 
 ## API
 
 ```text
+GET /api/status
 GET /api/summary
 GET /api/diagnostics
 GET /api/stocks
+GET /api/stocks?symbols=AAPL,MSFT,NVDA
 GET /api/stocks?sector=Technology&style=growth&minScore=60
 GET /api/stocks/NVDA
 ```
 
-`/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, average model confidence, factor averages, and the most flagged names in the current universe.
+`/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
 
 ## Internationalization
 

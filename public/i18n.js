@@ -39,7 +39,7 @@ export const messages = {
     sectorScores: "Sector average scores",
     riskNoteLabel: "Risk note:",
     riskNote:
-      "This software is for research and education only. Sample data may be stale, incomplete, or inaccurate. Any trading decision requires independent verification of data, suitability, and risk constraints.",
+      "This software is for research and education only. Market data may be delayed, stale, incomplete, or inaccurate. Any trading decision requires independent verification of data, suitability, and risk constraints.",
     confidence: "confidence",
     points: "pts",
     noActiveFlags: "No active flags",
@@ -91,7 +91,7 @@ export const messages = {
     sectorScores: "行业平均分",
     riskNoteLabel: "风险提示：",
     riskNote:
-      "本软件仅用于研究和教学。样例数据可能过时、不完整或不准确。任何交易决策都需要独立验证数据、适配性和风险约束。",
+      "本软件仅用于研究和教学。市场数据可能延迟、过时、不完整或不准确。任何交易决策都需要独立验证数据、适配性和风险约束。",
     confidence: "置信度",
     points: "分",
     noActiveFlags: "暂无风险提示",
@@ -143,7 +143,7 @@ export const messages = {
     sectorScores: "セクター平均スコア",
     riskNoteLabel: "リスク注記：",
     riskNote:
-      "本ソフトウェアは調査と学習のみを目的としています。サンプルデータは古い、不完全、または不正確な可能性があります。売買判断にはデータ、適合性、リスク制約の独立した確認が必要です。",
+      "本ソフトウェアは調査と学習のみを目的としています。市場データは遅延、古い、不完全、または不正確な可能性があります。売買判断にはデータ、適合性、リスク制約の独立した確認が必要です。",
     confidence: "信頼度",
     points: "点",
     noActiveFlags: "有効な警告なし",
@@ -241,6 +241,9 @@ export const flagMessages = {
     weak_growth: ["Weak growth", "Growth factor is below the neutral threshold."],
     liquidity: ["Liquidity watch", "Liquidity score is below preferred level."],
     missing_data: ["Missing required fields", "Some required inputs are missing."]
+    ,missing_fundamentals: ["Missing fundamentals", "Some fundamental fields are unavailable from the provider."]
+    ,high_drawdown: ["High drawdown", "Recent drawdown is elevated."]
+    ,weak_momentum: ["Weak momentum", "Momentum factor is below the neutral threshold."]
   },
   zh: {
     expensive_valuation: ["估值偏高", "较高的估值倍数会压缩安全边际。"],
@@ -249,6 +252,9 @@ export const flagMessages = {
     weak_growth: ["成长偏弱", "成长因子低于中性阈值。"],
     liquidity: ["流动性关注", "流动性评分低于偏好水平。"],
     missing_data: ["缺少必填字段", "部分模型输入数据缺失。"]
+    ,missing_fundamentals: ["基本面数据缺失", "数据源没有返回部分基本面字段。"]
+    ,high_drawdown: ["回撤偏高", "近期最大回撤处于较高水平。"]
+    ,weak_momentum: ["动量偏弱", "动量因子低于中性阈值。"]
   },
   ja: {
     expensive_valuation: ["割高な評価", "高い評価倍率は安全余裕を小さくします。"],
@@ -257,6 +263,9 @@ export const flagMessages = {
     weak_growth: ["成長力が弱い", "成長ファクターが中立基準を下回っています。"],
     liquidity: ["流動性注意", "流動性スコアが望ましい水準を下回っています。"],
     missing_data: ["必須項目の欠損", "一部のモデル入力が欠損しています。"]
+    ,missing_fundamentals: ["ファンダメンタル欠損", "データ提供元から一部の基本指標が返っていません。"]
+    ,high_drawdown: ["ドローダウン高め", "直近の最大ドローダウンが高い水準です。"]
+    ,weak_momentum: ["モメンタム弱め", "モメンタムファクターが中立基準を下回っています。"]
   }
 };
 
