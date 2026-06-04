@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -14,16 +15,48 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_DIR = ROOT / "public"
 PORT = int(os.environ.get("PORT", "3000"))
 DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA"]
+MAX_SYMBOLS_PER_REQUEST = int(os.environ.get("STOCK_ANALYZER_MAX_SYMBOLS", "12"))
+SYMBOL_PATTERN = re.compile(r"^[A-Z][A-Z0-9.-]{0,11}$")
+
+
+class RequestValidationError(ValueError):
+    pass
+
+
+def normalize_symbols(requested: str | list[str] | None = None) -> list[str]:
+    if requested is None:
+        requested = os.environ.get("STOCK_ANALYZER_SYMBOLS", "")
+
+    if isinstance(requested, str):
+        raw_symbols = requested.split(",")
+    else:
+        raw_symbols = requested
+
+    symbols = []
+    seen = set()
+    for raw_symbol in raw_symbols:
+        symbol = raw_symbol.strip().upper()
+        if not symbol:
+            continue
+        if not SYMBOL_PATTERN.match(symbol):
+            raise RequestValidationError(
+                f"Invalid symbol '{raw_symbol}'. Use letters, numbers, dots, or hyphens only."
+            )
+        if symbol not in seen:
+            seen.add(symbol)
+            symbols.append(symbol)
+
+    if not symbols:
+        symbols = DEFAULT_SYMBOLS
+    if len(symbols) > MAX_SYMBOLS_PER_REQUEST:
+        raise RequestValidationError(
+            f"Too many symbols requested. Limit is {MAX_SYMBOLS_PER_REQUEST} per request."
+        )
+    return symbols
 
 
 def load_universe(symbols: list[str] | None = None) -> list[dict[str, str]]:
-    requested = symbols or os.environ.get("STOCK_ANALYZER_SYMBOLS", "")
-    if isinstance(requested, str):
-        requested_symbols = [symbol.strip().upper() for symbol in requested.split(",") if symbol.strip()]
-    else:
-        requested_symbols = [symbol.strip().upper() for symbol in requested if symbol.strip()]
-    if not requested_symbols:
-        requested_symbols = DEFAULT_SYMBOLS
+    requested_symbols = normalize_symbols(symbols)
     return [
         {"symbol": symbol, "name": symbol, "sector": "Unknown"}
         for symbol in requested_symbols
@@ -58,7 +91,7 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
         try:
             query = parse_qs(parsed.query)
             symbols = query.get("symbols", [None])[0]
-            symbol_list = [symbol.strip().upper() for symbol in symbols.split(",")] if symbols else None
+            symbol_list = normalize_symbols(symbols) if symbols is not None else None
 
             if parsed.path == "/api/status":
                 self.send_json(api_status())
@@ -118,6 +151,8 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
             )
         except ProviderDataError as error:
             self.send_json({"error": "Market data provider error", "detail": str(error)}, status=502)
+        except RequestValidationError as error:
+            self.send_json({"error": "Invalid request", "detail": str(error)}, status=400)
 
     def send_json(self, body, status: int = 200) -> None:
         payload = json.dumps(body).encode("utf-8")
