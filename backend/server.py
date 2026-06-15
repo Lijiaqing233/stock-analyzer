@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from engine import build_stock_inputs, diagnostics_report, portfolio_summary, rank_stocks, score_stock
-from providers import AlphaVantageProvider, ProviderConfigError, ProviderDataError
+from providers import AlphaVantageProvider, ProviderConfigError, ProviderDataError, search_result_limit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,8 +69,9 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
                 if not keywords:
                     self.send_json([])
                     return
+                limit = search_result_limit(query.get("limit", [None])[0])
                 provider = AlphaVantageProvider()
-                self.send_json(provider.search_symbols(keywords))
+                self.send_json(provider.search_symbols(keywords, limit=limit))
                 return
 
             stocks, errors = load_live_stocks(symbol_list)
