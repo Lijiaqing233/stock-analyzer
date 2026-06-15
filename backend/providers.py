@@ -12,6 +12,8 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 CACHE_DIR = ROOT / ".cache" / "alpha_vantage"
 DEFAULT_TTL_SECONDS = int(os.environ.get("MARKET_DATA_TTL_SECONDS", str(60 * 60 * 12)))
+DEFAULT_SEARCH_LIMIT = 8
+MAX_SEARCH_LIMIT = 20
 
 
 class ProviderConfigError(RuntimeError):
@@ -44,29 +46,40 @@ class AlphaVantageProvider:
             },
         }
 
-    def search_symbols(self, keywords: str) -> list[dict]:
+    def search_symbols(self, keywords: str, limit: int | None = None) -> list[dict]:
+        query = keywords.strip()
+        if not query:
+            return []
+
         payload = self._request(
             "search",
             {
                 "function": "SYMBOL_SEARCH",
-                "keywords": keywords.strip(),
+                "keywords": query,
             },
         )
         matches = payload.get("bestMatches")
         if not isinstance(matches, list):
             self._raise_payload_error(payload, keywords)
-        return [
-            {
-                "symbol": item.get("1. symbol", ""),
-                "name": item.get("2. name", ""),
-                "type": item.get("3. type", ""),
-                "region": item.get("4. region", ""),
-                "currency": item.get("8. currency", ""),
-                "matchScore": item.get("9. matchScore", ""),
-            }
-            for item in matches
-            if item.get("1. symbol")
-        ]
+
+        results = []
+        seen_symbols: set[str] = set()
+        for item in matches:
+            normalized = self._normalize_search_match(item)
+            symbol = normalized["symbol"]
+            if not symbol or symbol in seen_symbols:
+                continue
+            seen_symbols.add(symbol)
+            results.append(normalized)
+
+        results.sort(
+            key=lambda item: (
+                self._search_relevance(query, item),
+                item["symbol"],
+            ),
+            reverse=True,
+        )
+        return results[:search_result_limit(limit)]
 
     def daily_series(self, symbol: str) -> list[dict]:
         payload = self._request(
@@ -146,3 +159,64 @@ class AlphaVantageProvider:
     def _raise_payload_error(payload: dict, symbol: str) -> None:
         AlphaVantageProvider._raise_if_rate_limited(payload, symbol)
         raise ProviderDataError(f"Alpha Vantage returned no usable data for {symbol}")
+
+    @staticmethod
+    def _normalize_search_match(item: dict) -> dict:
+        return {
+            "symbol": str(item.get("1. symbol", "")).strip().upper(),
+            "name": str(item.get("2. name", "")).strip(),
+            "type": str(item.get("3. type", "")).strip(),
+            "region": str(item.get("4. region", "")).strip(),
+            "currency": str(item.get("8. currency", "")).strip(),
+            "matchScore": parse_match_score(item.get("9. matchScore")),
+        }
+
+    @staticmethod
+    def _search_relevance(query: str, item: dict) -> float:
+        normalized_query = query.strip().upper()
+        symbol = item["symbol"]
+        name = item["name"].upper()
+        item_type = item["type"].lower()
+        region = item["region"].lower()
+        currency = item["currency"].upper()
+
+        score = item["matchScore"] * 100
+        if symbol == normalized_query:
+            score += 1000
+        elif symbol.startswith(normalized_query):
+            score += 250
+        elif normalized_query in symbol:
+            score += 120
+
+        if normalized_query and normalized_query in name:
+            score += 80
+        if item_type == "equity":
+            score += 120
+        elif item_type in {"etf", "mutual fund"}:
+            score += 40
+        if region in {"united states", "us"}:
+            score += 60
+        if currency == "USD":
+            score += 20
+
+        score -= max(len(symbol) - len(normalized_query), 0) * 2
+        return score
+
+
+def search_result_limit(value: int | str | None = None) -> int:
+    if value in (None, ""):
+        return DEFAULT_SEARCH_LIMIT
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_SEARCH_LIMIT
+    if parsed <= 0:
+        return DEFAULT_SEARCH_LIMIT
+    return min(parsed, MAX_SEARCH_LIMIT)
+
+
+def parse_match_score(value: object) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0

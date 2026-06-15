@@ -110,6 +110,7 @@ Go is a good second service when the system grows: API gateway, scheduled jobs, 
 ```text
 GET /api/status
 GET /api/search?q=apple
+GET /api/search?q=apple&limit=5
 GET /api/summary
 GET /api/diagnostics
 GET /api/stocks
@@ -118,7 +119,7 @@ GET /api/stocks?sector=Technology&style=growth&minScore=60
 GET /api/stocks/NVDA
 ```
 
-`/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
+`/api/search` now returns de-duplicated, relevance-ranked symbol candidates and accepts an optional `limit` query parameter capped server-side. `/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
 
 ## Internationalization
 
