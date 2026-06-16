@@ -56,6 +56,8 @@ $env:STOCK_ANALYZER_SYMBOLS="AAPL,MSFT,NVDA"
 
 The app is no longer limited to a checked-in stock list. The browser can search symbols through Alpha Vantage `SYMBOL_SEARCH`, then request analysis for the selected symbols with `symbols=AAPL,MSFT,NVDA`.
 
+Symbol requests are normalized, de-duplicated, and validated before the provider is called. A single request accepts up to 12 symbols by default; override this with `STOCK_ANALYZER_MAX_SYMBOLS` if you have a provider plan that can support larger batches.
+
 Full-market batch ranking requires a provider that exposes a licensed bulk universe or exchange listing feed. Alpha Vantage is used here for live per-symbol research and symbol lookup; the provider layer is isolated so a later Polygon/Nasdaq/Tushare universe provider can be added without rewriting the scoring engine.
 
 ## Scoring Model
