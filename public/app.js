@@ -98,10 +98,7 @@ async function loadStocks() {
   if (state.status && !state.status.configured) {
     state.stocks = [];
     renderList();
-    renderEmptyState(
-      "Market data setup required",
-      "Set ALPHA_VANTAGE_API_KEY and restart the server. The app no longer uses fake stock metrics."
-    );
+    renderEmptyState(i18n.t("marketDataSetupRequired"), i18n.t("marketDataSetupDetail"));
     return;
   }
   try {
@@ -116,7 +113,7 @@ async function loadStocks() {
   } catch (error) {
     state.stocks = [];
     renderList();
-    renderEmptyState("Market data setup required", error.message);
+    renderEmptyState(i18n.t("marketDataSetupRequired"), error.message);
   }
 }
 
@@ -135,7 +132,7 @@ async function searchSymbols() {
     state.searchResults = symbols.map((symbol) => ({
       symbol,
       name: symbol,
-      region: "Manual entry"
+      region: i18n.t("manualEntry")
     }));
     renderSearchResults();
     return;
@@ -143,7 +140,13 @@ async function searchSymbols() {
   try {
     state.searchResults = await getJson(`/api/search?q=${encodeURIComponent(query)}`);
   } catch (error) {
-    state.searchResults = [{ symbol: query.toUpperCase(), name: error.message, region: "Manual entry" }];
+    state.searchResults = [
+      {
+        symbol: query.toUpperCase(),
+        name: error.message,
+        region: i18n.t("manualEntry")
+      }
+    ];
   }
   renderSearchResults();
 }
@@ -299,12 +302,12 @@ function renderDetail(stock) {
     <ul class="flag-list">${flags}</ul>
     <div class="metric-table">
       <div class="metric"><span>P/E</span><strong>${stock.pe}</strong></div>
-      <div class="metric"><span>${metricLabel("price")}</span><strong>$${stock.price}</strong></div>
-      <div class="metric"><span>${metricLabel("return3m")}</span><strong>${formatPercent(stock.return3m)}</strong></div>
-      <div class="metric"><span>${metricLabel("volatility")}</span><strong>${formatPercent(stock.volatility)}</strong></div>
+      <div class="metric"><span>${i18n.metric("price")}</span><strong>$${stock.price}</strong></div>
+      <div class="metric"><span>${i18n.metric("return3m")}</span><strong>${formatPercent(stock.return3m)}</strong></div>
+      <div class="metric"><span>${i18n.metric("volatility")}</span><strong>${formatPercent(stock.volatility)}</strong></div>
       <div class="metric"><span>Beta</span><strong>${stock.beta}</strong></div>
-      <div class="metric"><span>${metricLabel("maxDrawdown")}</span><strong>${formatPercent(stock.maxDrawdown)}</strong></div>
-      <div class="metric"><span>${metricLabel("avgDollarVolume")}</span><strong>${formatMoney(stock.avgDollarVolume)}</strong></div>
+      <div class="metric"><span>${i18n.metric("maxDrawdown")}</span><strong>${formatPercent(stock.maxDrawdown)}</strong></div>
+      <div class="metric"><span>${i18n.metric("avgDollarVolume")}</span><strong>${formatMoney(stock.avgDollarVolume)}</strong></div>
     </div>
   `;
 }
@@ -315,7 +318,7 @@ function renderSelectedSymbols() {
       (symbol) => `
         <span class="symbol-chip">
           ${symbol}
-          <button type="button" data-remove-symbol="${symbol}" title="Remove ${symbol}">x</button>
+          <button type="button" data-remove-symbol="${symbol}" title="${i18n.t("removeSymbol", { symbol })}">x</button>
         </span>
       `
     )
@@ -429,33 +432,6 @@ function localizedThesis(stock) {
   if (!strengths && weaknesses) return i18n.t("thesisNoStrength", params);
   if (strengths && !weaknesses) return i18n.t("thesisNoWeakness", params);
   return i18n.t("thesisNeutral", params);
-}
-
-function metricLabel(key) {
-  const labels = {
-    en: {
-      price: "Latest price",
-      return3m: "3M return",
-      volatility: "Volatility",
-      maxDrawdown: "Max drawdown",
-      avgDollarVolume: "Avg dollar volume"
-    },
-    zh: {
-      price: "最新价格",
-      return3m: "3个月回报",
-      volatility: "波动率",
-      maxDrawdown: "最大回撤",
-      avgDollarVolume: "平均成交额"
-    },
-    ja: {
-      price: "最新価格",
-      return3m: "3か月リターン",
-      volatility: "ボラティリティ",
-      maxDrawdown: "最大ドローダウン",
-      avgDollarVolume: "平均売買代金"
-    }
-  };
-  return labels[i18n.language][key] ?? labels.en[key];
 }
 
 function renderEmptyState(title, detail) {

@@ -56,6 +56,11 @@ export const messages = {
     highSeverity: "{count} high severity",
     factorAverages: "Factor averages",
     stocksCount: "{count} stocks",
+    marketDataSetupRequired: "Market data setup required",
+    marketDataSetupDetail:
+      "Set ALPHA_VANTAGE_API_KEY and restart the server. The app no longer uses fake stock metrics.",
+    manualEntry: "Manual entry",
+    removeSymbol: "Remove {symbol}",
     thesis: "{name} ranks as {rating}. Strength in {strengths}. Monitor {weaknesses}.",
     thesisNoStrength: "{name} ranks as {rating}. No dominant factor edge. Monitor {weaknesses}.",
     thesisNoWeakness: "{name} ranks as {rating}. Strength in {strengths}. No severe factor weakness in the sample model.",
@@ -112,6 +117,10 @@ export const messages = {
     highSeverity: "{count} 个高严重度",
     factorAverages: "因子平均分",
     stocksCount: "{count} 只股票",
+    marketDataSetupRequired: "需要配置市场数据",
+    marketDataSetupDetail: "请设置 ALPHA_VANTAGE_API_KEY 并重启服务。应用已不再使用虚构股票数据。",
+    manualEntry: "手动输入",
+    removeSymbol: "移除 {symbol}",
     thesis: "{name} 评级为 {rating}。优势在于 {strengths}。需要关注 {weaknesses}。",
     thesisNoStrength: "{name} 评级为 {rating}。没有突出的因子优势。需要关注 {weaknesses}。",
     thesisNoWeakness: "{name} 评级为 {rating}。优势在于 {strengths}。样例模型没有发现严重因子弱点。",
@@ -168,6 +177,11 @@ export const messages = {
     highSeverity: "高重大度 {count} 件",
     factorAverages: "ファクター平均",
     stocksCount: "{count} 銘柄",
+    marketDataSetupRequired: "市場データの設定が必要です",
+    marketDataSetupDetail:
+      "ALPHA_VANTAGE_API_KEY を設定してサーバーを再起動してください。アプリはもう仮の株式データを使いません。",
+    manualEntry: "手動入力",
+    removeSymbol: "{symbol} を削除",
     thesis: "{name} の評価は {rating} です。強みは {strengths}。注意点は {weaknesses}。",
     thesisNoStrength: "{name} の評価は {rating} です。明確なファクター優位性はありません。注意点は {weaknesses}。",
     thesisNoWeakness: "{name} の評価は {rating} です。強みは {strengths}。サンプルモデルでは深刻なファクター弱点はありません。",
@@ -196,6 +210,30 @@ export const factorLabels = {
     quality: "品質",
     growth: "成長",
     risk: "リスク管理"
+  }
+};
+
+export const metricLabels = {
+  en: {
+    price: "Latest price",
+    return3m: "3M return",
+    volatility: "Volatility",
+    maxDrawdown: "Max drawdown",
+    avgDollarVolume: "Avg dollar volume"
+  },
+  zh: {
+    price: "最新价格",
+    return3m: "3个月回报",
+    volatility: "波动率",
+    maxDrawdown: "最大回撤",
+    avgDollarVolume: "平均成交额"
+  },
+  ja: {
+    price: "最新価格",
+    return3m: "3か月リターン",
+    volatility: "ボラティリティ",
+    maxDrawdown: "最大ドローダウン",
+    avgDollarVolume: "平均売買代金"
   }
 };
 
@@ -301,6 +339,9 @@ export function createI18n(initialLanguage) {
     },
     factor(name) {
       return factorLabels[language][name] ?? factorLabels.en[name] ?? name;
+    },
+    metric(name) {
+      return metricLabels[language][name] ?? metricLabels.en[name] ?? name;
     },
     rating(name) {
       return ratingLabels[language][name] ?? ratingLabels.en[name] ?? name;
