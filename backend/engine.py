@@ -199,8 +199,8 @@ def rank_stocks(stocks: list[dict[str, Any]], filters: dict[str, str] | None = N
     )
 
 
-def portfolio_summary(stocks: list[dict[str, Any]]) -> dict[str, Any]:
-    ranked = rank_stocks(stocks)
+def portfolio_summary(stocks: list[dict[str, Any]], filters: dict[str, str] | None = None) -> dict[str, Any]:
+    ranked = rank_stocks(stocks, filters)
     sectors: dict[str, dict[str, Any]] = {}
     for stock in ranked:
         current = sectors.setdefault(stock["sector"], {"sector": stock["sector"], "count": 0, "avgScore": 0})
@@ -221,8 +221,12 @@ def portfolio_summary(stocks: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def diagnostics_report(stocks: list[dict[str, Any]], errors: list[dict[str, str]] | None = None) -> dict[str, Any]:
-    scored = rank_stocks(stocks)
+def diagnostics_report(
+    stocks: list[dict[str, Any]],
+    errors: list[dict[str, str]] | None = None,
+    filters: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    scored = rank_stocks(stocks, filters)
     all_flags = [flag for stock in scored for flag in stock["flags"]]
     factor_averages = {
         name: round(mean(stock["factors"][name] for stock in scored)) if scored else 0
