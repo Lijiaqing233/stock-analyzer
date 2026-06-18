@@ -55,6 +55,7 @@ stocks = [
     stock,
     build_stock_inputs(fixture_snapshot("SLOW"), {"symbol": "SLOW", "name": "Slow Corp", "sector": "Utilities"}),
 ]
+stocks[1]["sector"] = "Utilities"
 stocks[1]["return1m"] = -8
 stocks[1]["return3m"] = -16
 stocks[1]["return6m"] = -20
@@ -71,9 +72,21 @@ summary = portfolio_summary(stocks)
 assert summary["universeSize"] == 2
 assert summary["sectors"]
 
+filtered_summary = portfolio_summary(stocks, {"sector": "Technology", "minScore": "40"})
+assert filtered_summary["universeSize"] == 1
+assert filtered_summary["sectors"][0]["sector"] == "Technology"
+
 diagnostics = diagnostics_report(stocks, [{"symbol": "MISS", "error": "provider failed"}])
 assert diagnostics["coverage"]["stocks"] == 2
 assert diagnostics["coverage"]["providerErrors"]
 assert diagnostics["model"]["averageConfidence"] > 0
+
+filtered_diagnostics = diagnostics_report(
+    stocks,
+    [{"symbol": "MISS", "error": "provider failed"}],
+    {"sector": "Technology", "minScore": "40"},
+)
+assert filtered_diagnostics["coverage"]["stocks"] == 1
+assert filtered_diagnostics["risk"]["mostFlagged"][0]["symbol"] == "TEST"
 
 print("python engine checks passed")

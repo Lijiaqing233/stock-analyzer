@@ -59,6 +59,7 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
             query = parse_qs(parsed.query)
             symbols = query.get("symbols", [None])[0]
             symbol_list = [symbol.strip().upper() for symbol in symbols.split(",")] if symbols else None
+            filters = {key: values[0] for key, values in query.items() if key != "symbols"}
 
             if parsed.path == "/api/status":
                 self.send_json(api_status())
@@ -85,16 +86,15 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
                 return
 
             if parsed.path == "/api/stocks":
-                filters = {key: values[0] for key, values in query.items() if key != "symbols"}
                 self.send_json(rank_stocks(stocks, filters))
                 return
 
             if parsed.path == "/api/summary":
-                self.send_json(portfolio_summary(stocks))
+                self.send_json(portfolio_summary(stocks, filters))
                 return
 
             if parsed.path == "/api/diagnostics":
-                self.send_json(diagnostics_report(stocks, errors))
+                self.send_json(diagnostics_report(stocks, errors, filters))
                 return
 
             prefix = "/api/stocks/"

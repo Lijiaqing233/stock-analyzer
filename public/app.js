@@ -155,7 +155,7 @@ async function loadSummary() {
     return;
   }
   try {
-    state.summary = await getJson("/api/summary");
+    state.summary = await getJson(`/api/summary?${queryString()}`);
     renderSummary();
     renderSectorOptions();
     renderSectors();
@@ -172,7 +172,7 @@ async function loadDiagnostics() {
     return;
   }
   try {
-    state.diagnostics = await getJson("/api/diagnostics");
+    state.diagnostics = await getJson(`/api/diagnostics?${queryString()}`);
     renderDiagnostics();
   } catch {
     state.diagnostics = null;
