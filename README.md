@@ -118,7 +118,7 @@ GET /api/stocks?sector=Technology&style=growth&minScore=60
 GET /api/stocks/NVDA
 ```
 
-`/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
+`/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, risk/data flags, and `dataQuality` completeness metadata for every stock. Confidence is capped by the percentage of available model inputs so missing fundamentals or price-history signals cannot appear more certain than the underlying data supports. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
 
 ## Internationalization
 

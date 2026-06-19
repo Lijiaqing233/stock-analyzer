@@ -49,7 +49,21 @@ assert 0 <= single["score"] <= 100
 assert "momentum" in single["factors"]
 assert "confidence" in single
 assert "contributions" in single
+assert single["dataQuality"]["completeness"] == 100
+assert single["dataQuality"]["missingInputs"] == []
 assert sum(single["contributions"].values()) <= 100
+
+incomplete_stock = dict(stock)
+incomplete_stock["pe"] = None
+incomplete_stock["trend200"] = None
+incomplete = score_stock(incomplete_stock)
+assert incomplete["dataQuality"] == {
+    "availableInputs": 14,
+    "totalInputs": 16,
+    "completeness": 88,
+    "missingInputs": ["trend200", "pe"],
+}
+assert incomplete["confidence"] <= incomplete["dataQuality"]["completeness"]
 
 stocks = [
     stock,
