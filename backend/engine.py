@@ -26,6 +26,25 @@ CORE_FIELDS = [
     "avgDollarVolume",
 ]
 
+MODEL_INPUT_FIELDS = [
+    "return1m",
+    "return3m",
+    "return6m",
+    "trend50",
+    "trend200",
+    "volatility",
+    "maxDrawdown",
+    "avgDollarVolume",
+    "pe",
+    "pb",
+    "roe",
+    "profitMargin",
+    "revenueGrowth",
+    "epsGrowth",
+    "dividendYield",
+    "beta",
+]
+
 
 def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
     return min(maximum, max(minimum, value))
@@ -107,6 +126,7 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
         stock,
         ["pe", "pb", "roe", "profitMargin", "revenueGrowth", "epsGrowth", "dividendYield", "beta"],
     )
+    missing_model_inputs = missing_fields(stock, MODEL_INPUT_FIELDS)
 
     momentum = weighted_average(
         [
@@ -156,6 +176,7 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
     }
     total = sum(factors[name] * weight for name, weight in FACTOR_WEIGHTS.items())
     flags = risk_flags(stock, factors, missing_core, missing_fundamentals)
+    data_quality = model_data_quality(missing_model_inputs)
 
     return {
         **stock,
@@ -163,7 +184,8 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
         "contributions": {name: round(factors[name] * weight, 1) for name, weight in FACTOR_WEIGHTS.items()},
         "score": round(total),
         "rating": rating_for(total),
-        "confidence": confidence_score(flags),
+        "confidence": min(confidence_score(flags), data_quality["completeness"]),
+        "dataQuality": data_quality,
         "flags": flags,
         "thesis": build_thesis(stock, factors),
     }
@@ -291,6 +313,17 @@ def confidence_score(flags: list[dict[str, str]]) -> int:
         else:
             penalty += 4
     return round(clamp(100 - penalty, 0, 100))
+
+
+def model_data_quality(missing_inputs: list[str]) -> dict[str, Any]:
+    total_inputs = len(MODEL_INPUT_FIELDS)
+    available_inputs = total_inputs - len(missing_inputs)
+    return {
+        "availableInputs": available_inputs,
+        "totalInputs": total_inputs,
+        "completeness": round(available_inputs / total_inputs * 100),
+        "missingInputs": missing_inputs,
+    }
 
 
 def most_flagged(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
