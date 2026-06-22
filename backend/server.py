@@ -73,6 +73,25 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
                 self.send_json(provider.search_symbols(keywords))
                 return
 
+            prefix = "/api/stocks/"
+            if parsed.path.startswith(prefix):
+                symbol = unquote(parsed.path[len(prefix) :]).strip().upper()
+                if not symbol:
+                    self.send_json({"error": "Not found"}, status=404)
+                    return
+                stocks, errors = load_live_stocks([symbol])
+                if not stocks:
+                    self.send_json(
+                        {
+                            "error": "No market data available",
+                            "providerErrors": errors,
+                        },
+                        status=502,
+                    )
+                    return
+                self.send_json(score_stock(stocks[0]))
+                return
+
             stocks, errors = load_live_stocks(symbol_list)
             if not stocks:
                 self.send_json(
@@ -95,16 +114,6 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
 
             if parsed.path == "/api/diagnostics":
                 self.send_json(diagnostics_report(stocks, errors))
-                return
-
-            prefix = "/api/stocks/"
-            if parsed.path.startswith(prefix):
-                symbol = unquote(parsed.path[len(prefix) :]).upper()
-                stock = next((item for item in stocks if item["symbol"].upper() == symbol), None)
-                if stock is None:
-                    self.send_json({"error": "Not found", "providerErrors": errors}, status=404)
-                    return
-                self.send_json(score_stock(stock))
                 return
 
             self.send_json({"error": "Not found"}, status=404)
