@@ -120,6 +120,8 @@ GET /api/stocks/NVDA
 
 `/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
 
+`/api/stocks/{symbol}` fetches and scores that symbol directly; it does not require the symbol to be present in the startup or `symbols=` universe.
+
 ## Internationalization
 
 The browser UI supports English, Chinese, and Japanese. Static text is marked with `data-i18n`, while dynamic stock rows, model diagnostics, factor labels, rating labels, sector names, and risk flags are rendered through `public/i18n.js`.
