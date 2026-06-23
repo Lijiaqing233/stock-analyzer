@@ -70,6 +70,8 @@ The model converts live price and fundamental signals to 0-100 factor scores and
 | Growth | 18% | Revenue growth, EPS growth, distance to 200-day average |
 | Risk | 20% | Beta, annualized volatility, 6-month max drawdown, liquidity |
 
+Non-positive P/E or P/B values are treated as adverse valuation signals rather than as unusually cheap multiples. Missing valuation inputs remain neutral so unavailable data is not confused with loss-making earnings or negative book equity.
+
 Ratings are research labels:
 
 - `Strong Watch`: high model score, worth deeper review
