@@ -43,6 +43,22 @@ def scale_negative(value: float | None, good: float, bad: float, neutral: float 
     return clamp(((bad - value) / (bad - good)) * 100)
 
 
+def valuation_multiple_score(value: float | None, good: float, bad: float) -> float:
+    if value is None:
+        return 50
+    if value <= 0:
+        return 0
+    return scale_negative(value, good, bad)
+
+
+def earnings_yield_score(pe: float | None) -> float:
+    if pe is None:
+        return 50
+    if pe <= 0:
+        return 0
+    return scale_positive(100 / pe, 9, 1)
+
+
 def weighted_average(parts: list[tuple[float, float]]) -> float:
     total_weight = sum(weight for _, weight in parts)
     if not total_weight:
@@ -118,10 +134,10 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
     )
     value = weighted_average(
         [
-            (scale_negative(stock.get("pe"), 8, 45), 0.45),
-            (scale_negative(stock.get("pb"), 0.8, 10), 0.25),
+            (valuation_multiple_score(stock.get("pe"), 8, 45), 0.45),
+            (valuation_multiple_score(stock.get("pb"), 0.8, 10), 0.25),
             (scale_positive(stock.get("dividendYield"), 5, 0), 0.15),
-            (scale_positive(earnings_yield(stock.get("pe")), 9, 1), 0.15),
+            (earnings_yield_score(stock.get("pe")), 0.15),
         ]
     )
     quality = weighted_average(
@@ -369,12 +385,6 @@ def percent_or_none(value: Any) -> float | None:
     if number is None:
         return None
     return round(number * 100, 2) if abs(number) <= 2 else round(number, 2)
-
-
-def earnings_yield(pe: float | None) -> float | None:
-    if pe is None or pe <= 0:
-        return None
-    return 100 / pe
 
 
 def missing_fields(stock: dict[str, Any], fields: list[str]) -> list[str]:

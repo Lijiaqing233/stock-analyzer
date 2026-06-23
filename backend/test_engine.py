@@ -51,6 +51,13 @@ assert "confidence" in single
 assert "contributions" in single
 assert sum(single["contributions"].values()) <= 100
 
+loss_making_stock = {**stock, "pe": -8.0, "pb": -2.0}
+missing_valuation_stock = {**stock, "pe": None, "pb": None}
+loss_making_score = score_stock(loss_making_stock)
+missing_valuation_score = score_stock(missing_valuation_stock)
+assert loss_making_score["factors"]["value"] < missing_valuation_score["factors"]["value"]
+assert loss_making_score["factors"]["value"] < 10
+
 stocks = [
     stock,
     build_stock_inputs(fixture_snapshot("SLOW"), {"symbol": "SLOW", "name": "Slow Corp", "sector": "Utilities"}),
