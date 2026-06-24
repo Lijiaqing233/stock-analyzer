@@ -11,7 +11,18 @@ from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE_DIR = ROOT / ".cache" / "alpha_vantage"
-DEFAULT_TTL_SECONDS = int(os.environ.get("MARKET_DATA_TTL_SECONDS", str(60 * 60 * 12)))
+DEFAULT_TTL_SECONDS = 60 * 60 * 12
+
+
+def market_data_ttl_seconds(value: str | int | None = None) -> int:
+    raw_value = os.environ.get("MARKET_DATA_TTL_SECONDS") if value is None else value
+    if raw_value in (None, ""):
+        return DEFAULT_TTL_SECONDS
+    try:
+        ttl_seconds = int(raw_value)
+    except (TypeError, ValueError):
+        return DEFAULT_TTL_SECONDS
+    return ttl_seconds if ttl_seconds > 0 else DEFAULT_TTL_SECONDS
 
 
 class ProviderConfigError(RuntimeError):
@@ -25,9 +36,9 @@ class ProviderDataError(RuntimeError):
 class AlphaVantageProvider:
     base_url = "https://www.alphavantage.co/query"
 
-    def __init__(self, api_key: str | None = None, ttl_seconds: int = DEFAULT_TTL_SECONDS):
+    def __init__(self, api_key: str | None = None, ttl_seconds: str | int | None = None):
         self.api_key = api_key or os.environ.get("ALPHA_VANTAGE_API_KEY")
-        self.ttl_seconds = ttl_seconds
+        self.ttl_seconds = market_data_ttl_seconds(ttl_seconds)
         if not self.api_key:
             raise ProviderConfigError(
                 "ALPHA_VANTAGE_API_KEY is required. Create a free key at https://www.alphavantage.co/support/#api-key"

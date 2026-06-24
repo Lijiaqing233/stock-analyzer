@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from engine import build_stock_inputs, diagnostics_report, portfolio_summary, rank_stocks, score_stock
-from providers import AlphaVantageProvider, ProviderConfigError, ProviderDataError
+from providers import AlphaVantageProvider, ProviderConfigError, ProviderDataError, market_data_ttl_seconds
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -134,7 +134,7 @@ def api_status() -> dict:
         "provider": "Alpha Vantage",
         "configured": bool(os.environ.get("ALPHA_VANTAGE_API_KEY")),
         "defaultSymbols": [item["symbol"] for item in load_universe()],
-        "cacheTtlSeconds": int(os.environ.get("MARKET_DATA_TTL_SECONDS", str(60 * 60 * 12))),
+        "cacheTtlSeconds": market_data_ttl_seconds(),
     }
 
 

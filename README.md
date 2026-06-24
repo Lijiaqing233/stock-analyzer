@@ -48,6 +48,8 @@ The provider caches responses in `.cache/alpha_vantage` for 12 hours by default.
 $env:MARKET_DATA_TTL_SECONDS="3600"
 ```
 
+Invalid, empty, or non-positive TTL values fall back to the 12-hour default.
+
 Use a custom comma-separated startup set without editing files:
 
 ```bash
