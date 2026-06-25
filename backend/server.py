@@ -74,6 +74,10 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
                 return
 
             stocks, errors = load_live_stocks(symbol_list)
+            if parsed.path == "/api/diagnostics":
+                self.send_json(diagnostics_report(stocks, errors))
+                return
+
             if not stocks:
                 self.send_json(
                     {
@@ -91,10 +95,6 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
 
             if parsed.path == "/api/summary":
                 self.send_json(portfolio_summary(stocks))
-                return
-
-            if parsed.path == "/api/diagnostics":
-                self.send_json(diagnostics_report(stocks, errors))
                 return
 
             prefix = "/api/stocks/"
