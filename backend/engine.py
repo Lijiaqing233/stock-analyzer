@@ -165,6 +165,7 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
         "rating": rating_for(total),
         "confidence": confidence_score(flags),
         "flags": flags,
+        "researchHorizon": research_horizon(factors),
         "thesis": build_thesis(stock, factors),
     }
 
@@ -312,6 +313,38 @@ def build_thesis(stock: dict[str, Any], factors: dict[str, float]) -> str:
     caution = f"Monitor {' and '.join(weaknesses[:2])}." if weaknesses else "No severe factor weakness."
     score = sum(factors[name] * weight for name, weight in FACTOR_WEIGHTS.items())
     return f"{stock['name']} ranks as {rating_for(score)}. {positive} {caution}"
+
+
+def research_horizon(factors: dict[str, float]) -> dict[str, str]:
+    if factors["risk"] < 45:
+        return {
+            "label": "risk_review",
+            "months": "0-1",
+            "rationale": "Risk inputs are weak; review data quality, liquidity, and drawdown before treating the score as actionable.",
+        }
+    if factors["momentum"] >= 68 and factors["risk"] >= 55:
+        return {
+            "label": "tactical",
+            "months": "1-3",
+            "rationale": "Momentum is the clearest edge, so the ranking is most relevant for near-term watchlist review.",
+        }
+    if factors["value"] >= 68 and factors["momentum"] < 50:
+        return {
+            "label": "mean_reversion",
+            "months": "6-12",
+            "rationale": "Value is strong while momentum is not, which usually needs a longer validation window.",
+        }
+    if factors["quality"] >= 68 or factors["growth"] >= 68:
+        return {
+            "label": "fundamental",
+            "months": "6-12",
+            "rationale": "Quality or growth is the main edge, so the thesis depends on fundamentals compounding over time.",
+        }
+    return {
+        "label": "balanced",
+        "months": "3-6",
+        "rationale": "No single factor dominates, so the ranking is best used as a medium-term research screen.",
+    }
 
 
 def daily_returns(closes: list[float]) -> list[float]:

@@ -1,4 +1,4 @@
-from engine import build_stock_inputs, diagnostics_report, portfolio_summary, rank_stocks, score_stock
+from engine import build_stock_inputs, diagnostics_report, portfolio_summary, rank_stocks, research_horizon, score_stock
 
 
 def fixture_snapshot(symbol="TEST"):
@@ -49,7 +49,14 @@ assert 0 <= single["score"] <= 100
 assert "momentum" in single["factors"]
 assert "confidence" in single
 assert "contributions" in single
+assert single["researchHorizon"]["label"]
+assert single["researchHorizon"]["months"]
+assert single["researchHorizon"]["rationale"]
 assert sum(single["contributions"].values()) <= 100
+
+assert research_horizon({"momentum": 74, "value": 45, "quality": 52, "growth": 55, "risk": 62})["label"] == "tactical"
+assert research_horizon({"momentum": 42, "value": 76, "quality": 52, "growth": 50, "risk": 58})["label"] == "mean_reversion"
+assert research_horizon({"momentum": 60, "value": 60, "quality": 60, "growth": 60, "risk": 36})["label"] == "risk_review"
 
 stocks = [
     stock,

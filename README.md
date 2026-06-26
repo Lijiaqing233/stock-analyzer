@@ -118,7 +118,7 @@ GET /api/stocks?sector=Technology&style=growth&minScore=60
 GET /api/stocks/NVDA
 ```
 
-`/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
+`/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, research horizon, and risk/data flags for every stock. The research horizon describes whether the factor mix is better suited to tactical review, fundamental review, mean-reversion review, or risk review; it is an explanation aid, not a trading instruction. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
 
 ## Internationalization
 
