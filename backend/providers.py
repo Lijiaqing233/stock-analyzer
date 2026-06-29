@@ -12,6 +12,20 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 CACHE_DIR = ROOT / ".cache" / "alpha_vantage"
 DEFAULT_TTL_SECONDS = int(os.environ.get("MARKET_DATA_TTL_SECONDS", str(60 * 60 * 12)))
+DEFAULT_TIMEOUT_SECONDS = 20
+
+
+def provider_timeout_seconds(value: str | None = None) -> float:
+    raw_value = os.environ.get("ALPHA_VANTAGE_TIMEOUT_SECONDS") if value is None else value
+    if raw_value in (None, ""):
+        return DEFAULT_TIMEOUT_SECONDS
+    try:
+        timeout = float(raw_value)
+    except (TypeError, ValueError):
+        return DEFAULT_TIMEOUT_SECONDS
+    if timeout <= 0:
+        return DEFAULT_TIMEOUT_SECONDS
+    return timeout
 
 
 class ProviderConfigError(RuntimeError):
@@ -25,9 +39,15 @@ class ProviderDataError(RuntimeError):
 class AlphaVantageProvider:
     base_url = "https://www.alphavantage.co/query"
 
-    def __init__(self, api_key: str | None = None, ttl_seconds: int = DEFAULT_TTL_SECONDS):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        ttl_seconds: int = DEFAULT_TTL_SECONDS,
+        timeout_seconds: float | None = None,
+    ):
         self.api_key = api_key or os.environ.get("ALPHA_VANTAGE_API_KEY")
         self.ttl_seconds = ttl_seconds
+        self.timeout_seconds = provider_timeout_seconds() if timeout_seconds is None else timeout_seconds
         if not self.api_key:
             raise ProviderConfigError(
                 "ALPHA_VANTAGE_API_KEY is required. Create a free key at https://www.alphavantage.co/support/#api-key"
@@ -41,6 +61,7 @@ class AlphaVantageProvider:
             "provider": {
                 "name": "Alpha Vantage",
                 "ttlSeconds": self.ttl_seconds,
+                "timeoutSeconds": self.timeout_seconds,
             },
         }
 
@@ -123,7 +144,7 @@ class AlphaVantageProvider:
         query = urlencode({**params, "apikey": self.api_key})
         url = f"{self.base_url}?{query}"
         try:
-            with urlopen(url, timeout=20) as response:
+            with urlopen(url, timeout=self.timeout_seconds) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as error:
             if cache_file.exists():

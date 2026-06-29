@@ -48,6 +48,12 @@ The provider caches responses in `.cache/alpha_vantage` for 12 hours by default.
 $env:MARKET_DATA_TTL_SECONDS="3600"
 ```
 
+The Alpha Vantage HTTP timeout defaults to 20 seconds. Override it for slower or stricter runtime environments:
+
+```bash
+$env:ALPHA_VANTAGE_TIMEOUT_SECONDS="10"
+```
+
 Use a custom comma-separated startup set without editing files:
 
 ```bash
@@ -94,6 +100,7 @@ Run basic checks:
 
 ```bash
 python backend/test_engine.py
+python backend/test_providers.py
 ```
 
 ## Backend Language Choice
