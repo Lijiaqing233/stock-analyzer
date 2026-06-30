@@ -1,4 +1,12 @@
-from engine import build_stock_inputs, diagnostics_report, portfolio_summary, rank_stocks, score_stock
+from engine import (
+    build_stock_inputs,
+    confidence_breakdown,
+    confidence_score,
+    diagnostics_report,
+    portfolio_summary,
+    rank_stocks,
+    score_stock,
+)
 
 
 def fixture_snapshot(symbol="TEST"):
@@ -48,8 +56,25 @@ assert single["symbol"] == "TEST"
 assert 0 <= single["score"] <= 100
 assert "momentum" in single["factors"]
 assert "confidence" in single
+assert "confidenceBreakdown" in single
+assert single["confidenceBreakdown"]["score"] == single["confidence"]
+assert single["confidenceBreakdown"]["totalPenalty"] == sum(
+    item["points"] for item in single["confidenceBreakdown"]["penalties"]
+)
 assert "contributions" in single
 assert sum(single["contributions"].values()) <= 100
+
+confidence_flags = [
+    {"code": "missing_data", "severity": "high", "detail": "Missing core prices."},
+    {"code": "high_market_risk", "severity": "medium", "detail": "Elevated beta."},
+    {"code": "weak_growth", "severity": "low", "detail": "Growth factor is below neutral."},
+]
+breakdown = confidence_breakdown(confidence_flags)
+assert confidence_score(confidence_flags) == 63
+assert breakdown["base"] == 100
+assert breakdown["totalPenalty"] == 37
+assert breakdown["score"] == 63
+assert [item["points"] for item in breakdown["penalties"]] == [24, 9, 4]
 
 stocks = [
     stock,
