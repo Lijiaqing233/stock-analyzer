@@ -156,6 +156,7 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
     }
     total = sum(factors[name] * weight for name, weight in FACTOR_WEIGHTS.items())
     flags = risk_flags(stock, factors, missing_core, missing_fundamentals)
+    confidence = confidence_score(flags)
 
     return {
         **stock,
@@ -163,7 +164,8 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
         "contributions": {name: round(factors[name] * weight, 1) for name, weight in FACTOR_WEIGHTS.items()},
         "score": round(total),
         "rating": rating_for(total),
-        "confidence": confidence_score(flags),
+        "confidence": confidence,
+        "confidenceBreakdown": confidence_breakdown(flags, confidence),
         "flags": flags,
         "thesis": build_thesis(stock, factors),
     }
@@ -284,13 +286,35 @@ def risk_flags(
 def confidence_score(flags: list[dict[str, str]]) -> int:
     penalty = 0
     for flag in flags:
-        if flag["severity"] == "high":
-            penalty += 24
-        elif flag["severity"] == "medium":
-            penalty += 9
-        else:
-            penalty += 4
+        penalty += confidence_penalty(flag["severity"])
     return round(clamp(100 - penalty, 0, 100))
+
+
+def confidence_penalty(severity: str) -> int:
+    if severity == "high":
+        return 24
+    if severity == "medium":
+        return 9
+    return 4
+
+
+def confidence_breakdown(flags: list[dict[str, str]], confidence: int | None = None) -> dict[str, Any]:
+    penalties = [
+        {
+            "code": flag["code"],
+            "severity": flag["severity"],
+            "points": confidence_penalty(flag["severity"]),
+            "detail": flag["detail"],
+        }
+        for flag in flags
+    ]
+    total_penalty = sum(item["points"] for item in penalties)
+    return {
+        "base": 100,
+        "totalPenalty": total_penalty,
+        "score": confidence if confidence is not None else confidence_score(flags),
+        "penalties": penalties,
+    }
 
 
 def most_flagged(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
