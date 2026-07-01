@@ -26,6 +26,8 @@ CORE_FIELDS = [
     "avgDollarVolume",
 ]
 
+FUNDAMENTAL_FIELDS = ["pe", "pb", "roe", "profitMargin", "revenueGrowth", "epsGrowth", "dividendYield", "beta"]
+
 
 def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
     return min(maximum, max(minimum, value))
@@ -103,10 +105,7 @@ def build_stock_inputs(snapshot: dict[str, Any], universe_item: dict[str, str]) 
 
 def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
     missing_core = missing_fields(stock, CORE_FIELDS)
-    missing_fundamentals = missing_fields(
-        stock,
-        ["pe", "pb", "roe", "profitMargin", "revenueGrowth", "epsGrowth", "dividendYield", "beta"],
-    )
+    missing_fundamentals = missing_fields(stock, FUNDAMENTAL_FIELDS)
 
     momentum = weighted_average(
         [
@@ -164,6 +163,7 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
         "score": round(total),
         "rating": rating_for(total),
         "confidence": confidence_score(flags),
+        "dataQuality": data_quality(missing_core, missing_fundamentals),
         "flags": flags,
         "thesis": build_thesis(stock, factors),
     }
@@ -233,6 +233,9 @@ def diagnostics_report(stocks: list[dict[str, Any]], errors: list[dict[str, str]
             "stocks": len(scored),
             "requiredFields": len(CORE_FIELDS),
             "completeRows": len([stock for stock in scored if not missing_fields(stock, CORE_FIELDS)]),
+            "completeFundamentals": len(
+                [stock for stock in scored if not missing_fields(stock, FUNDAMENTAL_FIELDS)]
+            ),
             "missingBySymbol": {
                 stock["symbol"]: missing_fields(stock, CORE_FIELDS)
                 for stock in scored
@@ -291,6 +294,27 @@ def confidence_score(flags: list[dict[str, str]]) -> int:
         else:
             penalty += 4
     return round(clamp(100 - penalty, 0, 100))
+
+
+def data_quality(missing_core: list[str], missing_fundamentals: list[str]) -> dict[str, Any]:
+    core_available = len(CORE_FIELDS) - len(missing_core)
+    fundamentals_available = len(FUNDAMENTAL_FIELDS) - len(missing_fundamentals)
+    required_total = len(CORE_FIELDS) + len(FUNDAMENTAL_FIELDS)
+    available_total = core_available + fundamentals_available
+
+    return {
+        "score": round((available_total / required_total) * 100) if required_total else 0,
+        "core": {
+            "available": core_available,
+            "total": len(CORE_FIELDS),
+            "missing": missing_core,
+        },
+        "fundamentals": {
+            "available": fundamentals_available,
+            "total": len(FUNDAMENTAL_FIELDS),
+            "missing": missing_fundamentals,
+        },
+    }
 
 
 def most_flagged(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
