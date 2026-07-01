@@ -49,7 +49,18 @@ assert 0 <= single["score"] <= 100
 assert "momentum" in single["factors"]
 assert "confidence" in single
 assert "contributions" in single
+assert single["dataQuality"]["score"] == 100
+assert single["dataQuality"]["core"]["missing"] == []
+assert single["dataQuality"]["fundamentals"]["missing"] == []
 assert sum(single["contributions"].values()) <= 100
+
+partial = dict(stock)
+partial["pe"] = None
+partial["profitMargin"] = None
+partial_score = score_stock(partial)
+assert partial_score["dataQuality"]["score"] < single["dataQuality"]["score"]
+assert partial_score["dataQuality"]["fundamentals"]["available"] == 6
+assert partial_score["dataQuality"]["fundamentals"]["missing"] == ["pe", "profitMargin"]
 
 stocks = [
     stock,
@@ -73,6 +84,7 @@ assert summary["sectors"]
 
 diagnostics = diagnostics_report(stocks, [{"symbol": "MISS", "error": "provider failed"}])
 assert diagnostics["coverage"]["stocks"] == 2
+assert diagnostics["coverage"]["completeFundamentals"] == 2
 assert diagnostics["coverage"]["providerErrors"]
 assert diagnostics["model"]["averageConfidence"] > 0
 
