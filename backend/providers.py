@@ -22,6 +22,34 @@ class ProviderDataError(RuntimeError):
     pass
 
 
+def cache_status(ttl_seconds: int = DEFAULT_TTL_SECONDS, cache_dir: Path = CACHE_DIR) -> dict:
+    if not cache_dir.exists():
+        return {
+            "directory": str(cache_dir),
+            "exists": False,
+            "files": 0,
+            "freshFiles": 0,
+            "staleFiles": 0,
+            "newestAgeSeconds": None,
+        }
+
+    now = time.time()
+    ages = [
+        max(0, round(now - path.stat().st_mtime))
+        for path in cache_dir.glob("*.json")
+        if path.is_file()
+    ]
+    fresh_files = len([age for age in ages if age <= ttl_seconds])
+    return {
+        "directory": str(cache_dir),
+        "exists": True,
+        "files": len(ages),
+        "freshFiles": fresh_files,
+        "staleFiles": len(ages) - fresh_files,
+        "newestAgeSeconds": min(ages) if ages else None,
+    }
+
+
 class AlphaVantageProvider:
     base_url = "https://www.alphavantage.co/query"
 

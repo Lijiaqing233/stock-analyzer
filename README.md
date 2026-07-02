@@ -118,7 +118,7 @@ GET /api/stocks?sector=Technology&style=growth&minScore=60
 GET /api/stocks/NVDA
 ```
 
-`/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
+`/api/status` reports provider configuration, default symbols, cache TTL, and Alpha Vantage cache health so operators can see whether fresh or stale cached market data exists before diagnosing live provider failures. `/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
 
 ## Internationalization
 
