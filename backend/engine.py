@@ -156,6 +156,7 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
     }
     total = sum(factors[name] * weight for name, weight in FACTOR_WEIGHTS.items())
     flags = risk_flags(stock, factors, missing_core, missing_fundamentals)
+    risk_level_summary = risk_level(flags, factors["risk"])
 
     return {
         **stock,
@@ -164,6 +165,7 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
         "score": round(total),
         "rating": rating_for(total),
         "confidence": confidence_score(flags),
+        "riskLevel": risk_level_summary,
         "flags": flags,
         "thesis": build_thesis(stock, factors),
     }
@@ -248,6 +250,7 @@ def diagnostics_report(stocks: list[dict[str, Any]], errors: list[dict[str, str]
         "risk": {
             "flagCount": len(all_flags),
             "highSeverityCount": len([flag for flag in all_flags if flag["severity"] == "high"]),
+            "riskLevelDistribution": risk_level_distribution(scored),
             "mostFlagged": most_flagged(scored),
         },
     }
@@ -291,6 +294,39 @@ def confidence_score(flags: list[dict[str, str]]) -> int:
         else:
             penalty += 4
     return round(clamp(100 - penalty, 0, 100))
+
+
+def risk_level(flags: list[dict[str, str]], risk_score: float) -> dict[str, Any]:
+    medium_count = len([flag for flag in flags if flag["severity"] == "medium"])
+    has_high = any(flag["severity"] == "high" for flag in flags)
+
+    if has_high or risk_score < 35:
+        level = "high"
+        label = "High risk"
+    elif medium_count >= 2 or risk_score < 50:
+        level = "elevated"
+        label = "Elevated risk"
+    elif medium_count or risk_score < 70:
+        level = "moderate"
+        label = "Moderate risk"
+    else:
+        level = "low"
+        label = "Low risk"
+
+    return {
+        "level": level,
+        "label": label,
+        "score": round(risk_score),
+    }
+
+
+def risk_level_distribution(stocks: list[dict[str, Any]]) -> dict[str, int]:
+    distribution = {"low": 0, "moderate": 0, "elevated": 0, "high": 0}
+    for stock in stocks:
+        level = stock.get("riskLevel", {}).get("level")
+        if level in distribution:
+            distribution[level] += 1
+    return distribution
 
 
 def most_flagged(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -48,19 +48,30 @@ assert single["symbol"] == "TEST"
 assert 0 <= single["score"] <= 100
 assert "momentum" in single["factors"]
 assert "confidence" in single
+assert single["riskLevel"]["level"] in {"low", "moderate", "elevated", "high"}
+assert single["riskLevel"]["score"] == single["factors"]["risk"]
 assert "contributions" in single
 assert sum(single["contributions"].values()) <= 100
+
+risky = {**stock, "symbol": "RISK", "name": "Risk Corp"}
+risky["beta"] = 1.7
+risky["volatility"] = 52
+risky["maxDrawdown"] = -38
+risky["avgDollarVolume"] = 10_000_000
+risky_scored = score_stock(risky)
+assert risky_scored["riskLevel"]["level"] == "high"
 
 stocks = [
     stock,
     build_stock_inputs(fixture_snapshot("SLOW"), {"symbol": "SLOW", "name": "Slow Corp", "sector": "Utilities"}),
+    risky,
 ]
 stocks[1]["return1m"] = -8
 stocks[1]["return3m"] = -16
 stocks[1]["return6m"] = -20
 
 ranked = rank_stocks(stocks)
-assert len(ranked) == 2
+assert len(ranked) == 3
 assert ranked[0]["score"] >= ranked[-1]["score"]
 assert all(item["rating"] for item in ranked)
 
@@ -68,12 +79,13 @@ filtered = rank_stocks(stocks, {"sector": "Technology", "minScore": "40"})
 assert all(item["sector"] == "Technology" and item["score"] >= 40 for item in filtered)
 
 summary = portfolio_summary(stocks)
-assert summary["universeSize"] == 2
+assert summary["universeSize"] == 3
 assert summary["sectors"]
 
 diagnostics = diagnostics_report(stocks, [{"symbol": "MISS", "error": "provider failed"}])
-assert diagnostics["coverage"]["stocks"] == 2
+assert diagnostics["coverage"]["stocks"] == 3
 assert diagnostics["coverage"]["providerErrors"]
 assert diagnostics["model"]["averageConfidence"] > 0
+assert diagnostics["risk"]["riskLevelDistribution"]["high"] == 1
 
 print("python engine checks passed")
