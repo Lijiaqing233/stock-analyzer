@@ -244,6 +244,7 @@ def diagnostics_report(stocks: list[dict[str, Any]], errors: list[dict[str, str]
             "weights": FACTOR_WEIGHTS,
             "factorAverages": factor_averages,
             "averageConfidence": round(mean(stock["confidence"] for stock in scored)) if scored else 0,
+            "ratingDistribution": rating_distribution(scored),
         },
         "risk": {
             "flagCount": len(all_flags),
@@ -302,6 +303,27 @@ def most_flagged(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "highSeverityCount": len([flag for flag in stock["flags"] if flag["severity"] == "high"]),
         }
         for stock in sorted(stocks, key=lambda item: (len(item["flags"]), item["score"]), reverse=True)[:5]
+    ]
+
+
+def rating_distribution(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    total = len(stocks)
+    if not total:
+        return []
+
+    ratings = ["Strong Watch", "Watch", "Neutral", "Weak", "Avoid"]
+    counts = {rating: 0 for rating in ratings}
+    for stock in stocks:
+        counts[stock["rating"]] = counts.get(stock["rating"], 0) + 1
+
+    return [
+        {
+            "rating": rating,
+            "count": count,
+            "share": round(count / total, 2),
+        }
+        for rating, count in counts.items()
+        if count
     ]
 
 

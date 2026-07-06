@@ -75,5 +75,9 @@ diagnostics = diagnostics_report(stocks, [{"symbol": "MISS", "error": "provider 
 assert diagnostics["coverage"]["stocks"] == 2
 assert diagnostics["coverage"]["providerErrors"]
 assert diagnostics["model"]["averageConfidence"] > 0
+rating_distribution = diagnostics["model"]["ratingDistribution"]
+assert sum(row["count"] for row in rating_distribution) == 2
+assert all(0 < row["share"] <= 1 for row in rating_distribution)
+assert all(row["rating"] in {"Strong Watch", "Watch", "Neutral", "Weak", "Avoid"} for row in rating_distribution)
 
 print("python engine checks passed")
