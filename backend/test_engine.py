@@ -74,6 +74,9 @@ assert summary["sectors"]
 diagnostics = diagnostics_report(stocks, [{"symbol": "MISS", "error": "provider failed"}])
 assert diagnostics["coverage"]["stocks"] == 2
 assert diagnostics["coverage"]["providerErrors"]
+assert diagnostics["coverage"]["providerSources"] == [
+    {"name": "Fixture", "count": 2, "share": 1.0},
+]
 assert diagnostics["model"]["averageConfidence"] > 0
 
 print("python engine checks passed")

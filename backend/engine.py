@@ -238,6 +238,7 @@ def diagnostics_report(stocks: list[dict[str, Any]], errors: list[dict[str, str]
                 for stock in scored
                 if missing_fields(stock, CORE_FIELDS)
             },
+            "providerSources": provider_sources(scored),
             "providerErrors": errors or [],
         },
         "model": {
@@ -251,6 +252,25 @@ def diagnostics_report(stocks: list[dict[str, Any]], errors: list[dict[str, str]
             "mostFlagged": most_flagged(scored),
         },
     }
+
+
+def provider_sources(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    counts: dict[str, int] = {}
+    for stock in stocks:
+        provider = stock.get("provider")
+        name = provider.get("name") if isinstance(provider, dict) else None
+        source = name or "Unknown"
+        counts[source] = counts.get(source, 0) + 1
+
+    total = len(stocks)
+    return [
+        {
+            "name": name,
+            "count": count,
+            "share": round(count / total, 4) if total else 0,
+        }
+        for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
 
 
 def risk_flags(
