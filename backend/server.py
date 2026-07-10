@@ -14,6 +14,19 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_DIR = ROOT / "public"
 PORT = int(os.environ.get("PORT", "3000"))
 DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA"]
+API_CAPABILITIES = {
+    "symbolSearch": True,
+    "customSymbols": True,
+    "filters": ["sector", "style", "minScore", "maxRisk"],
+    "styles": ["growth", "value", "balanced"],
+    "endpoints": [
+        "/api/search",
+        "/api/stocks",
+        "/api/stocks/{symbol}",
+        "/api/summary",
+        "/api/diagnostics",
+    ],
+}
 
 
 def load_universe(symbols: list[str] | None = None) -> list[dict[str, str]]:
@@ -135,6 +148,7 @@ def api_status() -> dict:
         "configured": bool(os.environ.get("ALPHA_VANTAGE_API_KEY")),
         "defaultSymbols": [item["symbol"] for item in load_universe()],
         "cacheTtlSeconds": int(os.environ.get("MARKET_DATA_TTL_SECONDS", str(60 * 60 * 12))),
+        "capabilities": API_CAPABILITIES,
     }
 
 
