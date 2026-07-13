@@ -14,6 +14,12 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_DIR = ROOT / "public"
 PORT = int(os.environ.get("PORT", "3000"))
 DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA"]
+MARKET_DATA_PATHS = {"/api/stocks", "/api/summary", "/api/diagnostics"}
+STOCK_DETAIL_PREFIX = "/api/stocks/"
+
+
+def is_market_data_path(path: str) -> bool:
+    return path in MARKET_DATA_PATHS or path.startswith(STOCK_DETAIL_PREFIX)
 
 
 def load_universe(symbols: list[str] | None = None) -> list[dict[str, str]]:
@@ -73,6 +79,10 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
                 self.send_json(provider.search_symbols(keywords))
                 return
 
+            if not is_market_data_path(parsed.path):
+                self.send_json({"error": "Not found"}, status=404)
+                return
+
             stocks, errors = load_live_stocks(symbol_list)
             if not stocks:
                 self.send_json(
@@ -97,17 +107,14 @@ class StockAnalyzerHandler(SimpleHTTPRequestHandler):
                 self.send_json(diagnostics_report(stocks, errors))
                 return
 
-            prefix = "/api/stocks/"
-            if parsed.path.startswith(prefix):
-                symbol = unquote(parsed.path[len(prefix) :]).upper()
+            if parsed.path.startswith(STOCK_DETAIL_PREFIX):
+                symbol = unquote(parsed.path[len(STOCK_DETAIL_PREFIX) :]).upper()
                 stock = next((item for item in stocks if item["symbol"].upper() == symbol), None)
                 if stock is None:
                     self.send_json({"error": "Not found", "providerErrors": errors}, status=404)
                     return
                 self.send_json(score_stock(stock))
                 return
-
-            self.send_json({"error": "Not found"}, status=404)
         except ProviderConfigError as error:
             self.send_json(
                 {
