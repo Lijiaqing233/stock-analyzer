@@ -117,8 +117,9 @@ class AlphaVantageProvider:
         cache_key = (params.get("symbol") or params.get("keywords") or "request").upper()
         cache_key = "".join(char if char.isalnum() or char in ("-", "_", ".") else "_" for char in cache_key)
         cache_file = CACHE_DIR / f"{cache_group}_{cache_key}.json"
-        if cache_file.exists() and time.time() - cache_file.stat().st_mtime < self.ttl_seconds:
-            return json.loads(cache_file.read_text(encoding="utf-8"))
+        cached_payload = self._read_cache(cache_file)
+        if cached_payload is not None and time.time() - cache_file.stat().st_mtime < self.ttl_seconds:
+            return cached_payload
 
         query = urlencode({**params, "apikey": self.api_key})
         url = f"{self.base_url}?{query}"
@@ -126,13 +127,25 @@ class AlphaVantageProvider:
             with urlopen(url, timeout=20) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as error:
-            if cache_file.exists():
-                return json.loads(cache_file.read_text(encoding="utf-8"))
+            if cached_payload is not None:
+                return cached_payload
             raise ProviderDataError(f"Unable to fetch Alpha Vantage data for {cache_key}") from error
 
         self._raise_if_rate_limited(payload, cache_key)
-        cache_file.write_text(json.dumps(payload), encoding="utf-8")
+        cache_temp = cache_file.with_suffix(".tmp")
+        cache_temp.write_text(json.dumps(payload), encoding="utf-8")
+        cache_temp.replace(cache_file)
         return payload
+
+    @staticmethod
+    def _read_cache(cache_file: Path) -> dict | None:
+        if not cache_file.exists():
+            return None
+        try:
+            payload = json.loads(cache_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return payload if isinstance(payload, dict) else None
 
     @staticmethod
     def _raise_if_rate_limited(payload: dict, symbol: str) -> None:

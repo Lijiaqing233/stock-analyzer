@@ -42,7 +42,7 @@ $env:ALPHA_VANTAGE_API_KEY="your_key_here"
 python backend/server.py
 ```
 
-The provider caches responses in `.cache/alpha_vantage` for 12 hours by default. Override the cache TTL:
+The provider caches responses in `.cache/alpha_vantage` for 12 hours by default. Cache files are written atomically, and malformed cache entries are ignored instead of breaking market-data requests. Override the cache TTL:
 
 ```bash
 $env:MARKET_DATA_TTL_SECONDS="3600"
