@@ -51,6 +51,13 @@ assert "confidence" in single
 assert "contributions" in single
 assert sum(single["contributions"].values()) <= 100
 
+missing_drawdown_stock = {**stock, "maxDrawdown": None}
+zero_drawdown_stock = {**stock, "maxDrawdown": 0}
+missing_drawdown_score = score_stock(missing_drawdown_stock)
+zero_drawdown_score = score_stock(zero_drawdown_stock)
+assert missing_drawdown_score["factors"]["risk"] < zero_drawdown_score["factors"]["risk"]
+assert "maxDrawdown" in missing_drawdown_score["flags"][0]["detail"]
+
 stocks = [
     stock,
     build_stock_inputs(fixture_snapshot("SLOW"), {"symbol": "SLOW", "name": "Slow Corp", "sector": "Utilities"}),

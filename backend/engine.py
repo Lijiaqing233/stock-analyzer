@@ -142,7 +142,14 @@ def score_stock(stock: dict[str, Any]) -> dict[str, Any]:
         [
             (scale_negative(stock.get("beta"), 0.65, 1.8), 0.25),
             (scale_negative(stock.get("volatility"), 16, 60), 0.30),
-            (scale_negative(abs(stock.get("maxDrawdown") or 0), 8, 45), 0.30),
+            (
+                scale_negative(
+                    abs(stock["maxDrawdown"]) if stock.get("maxDrawdown") is not None else None,
+                    8,
+                    45,
+                ),
+                0.30,
+            ),
             (scale_positive(stock.get("avgDollarVolume"), 1_000_000_000, 25_000_000), 0.15),
         ]
     )
