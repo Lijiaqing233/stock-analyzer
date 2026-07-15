@@ -120,6 +120,8 @@ GET /api/stocks/NVDA
 
 `/api/stocks` returns score, rating, confidence, factor scores, factor point contributions, thesis text, and risk/data flags for every stock. `/api/diagnostics` summarizes data coverage, provider errors, average model confidence, factor averages, and the most flagged names in the current universe.
 
+Missing risk observations are scored neutrally rather than as best-case values, so incomplete maximum-drawdown data cannot inflate a recommendation.
+
 ## Internationalization
 
 The browser UI supports English, Chinese, and Japanese. Static text is marked with `data-i18n`, while dynamic stock rows, model diagnostics, factor labels, rating labels, sector names, and risk flags are rendered through `public/i18n.js`.
