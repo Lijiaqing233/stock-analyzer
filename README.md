@@ -48,6 +48,8 @@ The provider caches responses in `.cache/alpha_vantage` for 12 hours by default.
 $env:MARKET_DATA_TTL_SECONDS="3600"
 ```
 
+Daily OHLCV rows are validated before entering the scoring engine. Malformed or non-finite values such as `NaN` and `Infinity` are rejected as provider data errors instead of propagating invalid scores or JSON responses.
+
 Use a custom comma-separated startup set without editing files:
 
 ```bash
