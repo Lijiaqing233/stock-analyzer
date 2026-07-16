@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import time
 from pathlib import Path
@@ -84,18 +85,19 @@ class AlphaVantageProvider:
         rows = []
         for date, values in series.items():
             try:
-                rows.append(
-                    {
-                        "date": date,
-                        "open": float(values["1. open"]),
-                        "high": float(values["2. high"]),
-                        "low": float(values["3. low"]),
-                        "close": float(values["4. close"]),
-                        "volume": float(values["5. volume"]),
-                    }
-                )
+                row = {
+                    "date": date,
+                    "open": float(values["1. open"]),
+                    "high": float(values["2. high"]),
+                    "low": float(values["3. low"]),
+                    "close": float(values["4. close"]),
+                    "volume": float(values["5. volume"]),
+                }
             except (KeyError, TypeError, ValueError) as error:
                 raise ProviderDataError(f"Malformed daily price row for {symbol}: {date}") from error
+            if not all(math.isfinite(row[field]) for field in ("open", "high", "low", "close", "volume")):
+                raise ProviderDataError(f"Non-finite daily price row for {symbol}: {date}")
+            rows.append(row)
 
         rows.sort(key=lambda row: row["date"])
         return rows
